@@ -1,0 +1,301 @@
+{
+  "templates": [
+    {
+      "id": "template-1",
+      "name": "Red Roses",
+      "wholesaleCost": 3.50,
+      "type": "stem",
+      "lastUsed": "2024-01-15T10:30:00.000Z",
+      "inventoryCount": 48,
+      "lowStockThreshold": 20
+    },
+    {
+      "id": "template-2",
+      "name": "White Roses",
+      "wholesaleCost": 3.75,
+      "type": "stem",
+      "lastUsed": "2024-01-14T14:20:00.000Z",
+      "inventoryCount": 32,
+      "lowStockThreshold": 20
+    },
+    {
+      "id": "template-3",
+      "name": "Baby's Breath",
+      "wholesaleCost": 2.25,
+      "type": "stem",
+      "lastUsed": "2024-01-16T09:15:00.000Z",
+      "inventoryCount": 15,
+      "lowStockThreshold": 10
+    },
+    {
+      "id": "template-4",
+      "name": "Eucalyptus",
+      "wholesaleCost": 1.80,
+      "type": "stem",
+      "lastUsed": "2024-01-13T16:45:00.000Z",
+      "inventoryCount": 25,
+      "lowStockThreshold": 15
+    },
+    {
+      "id": "template-5",
+      "name": "Glass Cylinder Vase",
+      "wholesaleCost": 8.50,
+      "type": "vase",
+      "lastUsed": "2024-01-15T11:00:00.000Z",
+      "inventoryCount": 12,
+      "lowStockThreshold": 5
+    },
+    {
+      "id": "template-6",
+      "name": "Ceramic Pot",
+      "wholesaleCost": 12.00,
+      "type": "vase",
+      "lastUsed": "2024-01-12T13:30:00.000Z",
+      "inventoryCount": 8,
+      "lowStockThreshold": 5
+    },
+    {
+      "id": "template-7",
+      "name": "Satin Ribbon",
+      "wholesaleCost": 1.25,
+      "type": "accessory",
+      "lastUsed": "2024-01-16T15:20:00.000Z",
+      "inventoryCount": 50,
+      "lowStockThreshold": 10
+    },
+    {
+      "id": "template-8",
+      "name": "Floral Foam",
+      "wholesaleCost": 2.50,
+      "type": "other",
+      "lastUsed": "2024-01-14T08:45:00.000Z",
+      "inventoryCount": 3,
+      "lowStockThreshold": 5
+    },
+    {
+      "id": "template-9",
+      "name": "Pink Carnations",
+      "wholesaleCost": 2.10,
+      "type": "stem",
+      "lastUsed": "2024-01-15T12:15:00.000Z",
+      "inventoryCount": 0,
+      "lowStockThreshold": 15
+    },
+    {
+      "id": "template-10",
+      "name": "Sunflowers",
+      "wholesaleCost": 4.25,
+      "type": "stem",
+      "lastUsed": "2024-01-16T10:30:00.000Z",
+      "inventoryCount": 18,
+      "lowStockThreshold": 12
+    }
+  ],
+  "markupSettings": {
+    "stem": 2.5,
+    "vase": 2.0,
+    "accessory": 3.0,
+    "other": 2.0
+  },
+  "savedOrders": [
+    {
+      "id": "order-1",
+      "name": "Valentine's Day Bouquet - Johnson",
+      "date": "2024-01-15T14:30:00.000Z",
+      "products": [
+        {
+          "id": "product-1",
+          "name": "Red Roses",
+          "wholesaleCost": 3.50,
+          "quantity": 12,
+          "type": "stem"
+        },
+        {
+          "id": "product-2",
+          "name": "Baby's Breath",
+          "wholesaleCost": 2.25,
+          "quantity": 3,
+          "type": "stem"
+        },
+        {
+          "id": "product-3",
+          "name": "Glass Cylinder Vase",
+          "wholesaleCost": 8.50,
+          "quantity": 1,
+          "type": "vase"
+        },
+        {
+          "id": "product-4",
+          "name": "Satin Ribbon",
+          "wholesaleCost": 1.25,
+          "quantity": 1,
+          "type": "accessory"
+        }
+      ],
+      "totalWholesale": 59.25,
+      "totalRetail": 127.50,
+      "profit": 68.25,
+      "notes": "Customer requested deep red roses, extra full arrangement"
+    },
+    {
+      "id": "order-2",
+      "name": "Sympathy Arrangement - Williams",
+      "date": "2024-01-14T09:15:00.000Z",
+      "products": [
+        {
+          "id": "product-5",
+          "name": "White Roses",
+          "wholesaleCost": 3.75,
+          "quantity": 8,
+          "type": "stem"
+        },
+        {
+          "id": "product-6",
+          "name": "Eucalyptus",
+          "wholesaleCost": 1.80,
+          "quantity": 5,
+          "type": "stem"
+        },
+        {
+          "id": "product-7",
+          "name": "Ceramic Pot",
+          "wholesaleCost": 12.00,
+          "quantity": 1,
+          "type": "vase"
+        },
+        {
+          "id": "product-8",
+          "name": "Floral Foam",
+          "wholesaleCost": 2.50,
+          "quantity": 1,
+          "type": "other"
+        }
+      ],
+      "totalWholesale": 53.50,
+      "totalRetail": 113.50,
+      "profit": 60.00,
+      "notes": "Delivered to funeral home, white and green theme"
+    },
+    {
+      "id": "order-3",
+      "name": "Birthday Centerpiece - Davis",
+      "date": "2024-01-16T11:45:00.000Z",
+      "products": [
+        {
+          "id": "product-9",
+          "name": "Sunflowers",
+          "wholesaleCost": 4.25,
+          "quantity": 6,
+          "type": "stem"
+        },
+        {
+          "id": "product-10",
+          "name": "Pink Carnations",
+          "wholesaleCost": 2.10,
+          "quantity": 8,
+          "type": "stem"
+        },
+        {
+          "id": "product-11",
+          "name": "Glass Cylinder Vase",
+          "wholesaleCost": 8.50,
+          "quantity": 1,
+          "type": "vase"
+        }
+      ],
+      "totalWholesale": 50.30,
+      "totalRetail": 104.25,
+      "profit": 53.95,
+      "notes": "Bright and cheerful for 50th birthday party"
+    }
+  ],
+  "arrangementRecipes": [
+    {
+      "id": "recipe-1",
+      "name": "Classic Rose Bouquet",
+      "description": "Elegant dozen red roses with baby's breath and greenery",
+      "websitePrice": 89.99,
+      "ingredients": [
+        {
+          "name": "Red Roses",
+          "quantity": 12,
+          "type": "stem",
+          "notes": "Premium grade"
+        },
+        {
+          "name": "Baby's Breath",
+          "quantity": 3,
+          "type": "stem"
+        },
+        {
+          "name": "Eucalyptus",
+          "quantity": 2,
+          "type": "stem"
+        },
+        {
+          "name": "Satin Ribbon",
+          "quantity": 1,
+          "type": "accessory"
+        }
+      ],
+      "lastUpdated": "2024-01-15T16:00:00.000Z",
+      "websiteUrl": "https://yourflowershop.com/classic-rose-bouquet"
+    },
+    {
+      "id": "recipe-2",
+      "name": "Sunny Day Arrangement",
+      "description": "Bright sunflowers with colorful carnations in ceramic pot",
+      "websitePrice": 65.99,
+      "ingredients": [
+        {
+          "name": "Sunflowers",
+          "quantity": 4,
+          "type": "stem"
+        },
+        {
+          "name": "Pink Carnations",
+          "quantity": 6,
+          "type": "stem"
+        },
+        {
+          "name": "Ceramic Pot",
+          "quantity": 1,
+          "type": "vase"
+        },
+        {
+          "name": "Floral Foam",
+          "quantity": 1,
+          "type": "other"
+        }
+      ],
+      "lastUpdated": "2024-01-16T12:30:00.000Z"
+    },
+    {
+      "id": "recipe-3",
+      "name": "Peaceful Memories",
+      "description": "Serene white roses with eucalyptus in elegant vase",
+      "websitePrice": 75.99,
+      "ingredients": [
+        {
+          "name": "White Roses",
+          "quantity": 8,
+          "type": "stem"
+        },
+        {
+          "name": "Eucalyptus",
+          "quantity": 4,
+          "type": "stem"
+        },
+        {
+          "name": "Glass Cylinder Vase",
+          "quantity": 1,
+          "type": "vase"
+        }
+      ],
+      "lastUpdated": "2024-01-14T14:15:00.000Z",
+      "websiteUrl": "https://yourflowershop.com/peaceful-memories"
+    }
+  ],
+  "exportDate": "2024-01-17T10:00:00.000Z",
+  "version": "1.0"
+}
