@@ -293,9 +293,11 @@ function App() {
     try {
       await updateOrder(orderId, order);
       setEditingOrder(null);
-    } catch (error) {
+      alert('Order updated successfully!');
+    } catch (error: any) {
       console.error('Error updating order:', error);
-      alert('Error updating order. Please try again.');
+      const errorMessage = error.message || 'Unknown error occurred';
+      alert(`Error updating order: ${errorMessage}\n\nPlease check the console for more details.`);
     }
   };
 

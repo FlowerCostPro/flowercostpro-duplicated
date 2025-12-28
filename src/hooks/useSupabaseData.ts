@@ -740,23 +740,50 @@ export const useSupabaseData = (userId: string | null) => {
     }
 
     try {
-      // Update order
+      console.log('Starting order update for:', orderId);
+
+      // Update order - handle photo carefully
+      const updateData: any = {
+        name: updatedOrder.name,
+        total_wholesale: updatedOrder.totalWholesale,
+        total_retail: updatedOrder.totalRetail,
+        profit: updatedOrder.profit,
+        notes: updatedOrder.notes || null,
+        staff_name: updatedOrder.staffName || null,
+        staff_id: updatedOrder.staffId || null
+      };
+
+      // Only include photo if it's provided and not too large
+      if (updatedOrder.photo) {
+        // Check if photo is base64 and potentially too large
+        if (updatedOrder.photo.startsWith('data:image')) {
+          const photoSize = updatedOrder.photo.length;
+          console.log('Photo size:', photoSize, 'characters');
+
+          // Supabase can handle large text, but let's be cautious
+          if (photoSize > 5000000) { // ~5MB limit for base64
+            throw new Error('Photo is too large. Please use a smaller image (max 5MB).');
+          }
+        }
+        updateData.photo = updatedOrder.photo;
+      } else {
+        updateData.photo = null;
+      }
+
+      console.log('Updating order with data (photo length):', updateData.photo?.length || 0);
+
       const { error: orderError } = await supabase
         .from('orders')
-        .update({
-          name: updatedOrder.name,
-          total_wholesale: updatedOrder.totalWholesale,
-          total_retail: updatedOrder.totalRetail,
-          profit: updatedOrder.profit,
-          photo: updatedOrder.photo,
-          notes: updatedOrder.notes,
-          staff_name: updatedOrder.staffName,
-          staff_id: updatedOrder.staffId
-        })
+        .update(updateData)
         .eq('id', orderId)
         .eq('user_id', userId);
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('Order update error:', orderError);
+        throw orderError;
+      }
+
+      console.log('Order updated successfully, now updating products');
 
       // Delete existing order products
       const { error: deleteError } = await supabase
@@ -764,22 +791,34 @@ export const useSupabaseData = (userId: string | null) => {
         .delete()
         .eq('order_id', orderId);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Delete products error:', deleteError);
+        throw deleteError;
+      }
+
+      console.log('Old products deleted, inserting new products');
 
       // Insert new order products
-      const orderProducts = updatedOrder.products.map(product => ({
-        order_id: orderId,
-        name: product.name,
-        wholesale_cost: product.wholesaleCost,
-        quantity: product.quantity,
-        type: product.type
-      }));
+      if (updatedOrder.products.length > 0) {
+        const orderProducts = updatedOrder.products.map(product => ({
+          order_id: orderId,
+          name: product.name,
+          wholesale_cost: product.wholesaleCost,
+          quantity: product.quantity,
+          type: product.type
+        }));
 
-      const { error: productsError } = await supabase
-        .from('order_products')
-        .insert(orderProducts);
+        const { error: productsError } = await supabase
+          .from('order_products')
+          .insert(orderProducts);
 
-      if (productsError) throw productsError;
+        if (productsError) {
+          console.error('Insert products error:', productsError);
+          throw productsError;
+        }
+      }
+
+      console.log('Order update completed successfully');
 
       // Update local state
       setSavedOrders((prev: OrderRecord[]) =>
@@ -789,7 +828,8 @@ export const useSupabaseData = (userId: string | null) => {
       );
     } catch (error: any) {
       console.error('Error updating order:', error);
-      throw error;
+      const errorMessage = error.message || 'Unknown error occurred';
+      throw new Error(`Failed to update order: ${errorMessage}`);
     }
   };
 
