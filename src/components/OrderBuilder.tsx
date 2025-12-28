@@ -8,9 +8,11 @@ interface OrderBuilderProps {
   recipes: ArrangementRecipe[];
   markupSettings: MarkupSettings;
   onSaveOrder: (order: OrderRecord) => void;
+  onUpdateOrder?: (orderId: string, order: OrderRecord) => void;
   onOrderChange?: (products: Product[]) => void;
   userRole?: 'owner' | 'manager' | 'staff';
   posSettings: POSSettings;
+  initialOrder?: OrderRecord;
 }
 
 interface OrderItem extends Product {
@@ -24,9 +26,11 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   recipes,
   markupSettings,
   onSaveOrder,
+  onUpdateOrder,
   onOrderChange,
   userRole = 'owner',
-  posSettings
+  posSettings,
+  initialOrder
 }) => {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,6 +46,40 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   const [showRecipeSuggestions, setShowRecipeSuggestions] = useState(false);
   const [savedOrderForPOS, setSavedOrderForPOS] = useState<OrderRecord | null>(null);
   const [showPOSIntegration, setShowPOSIntegration] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+
+  // Load initial order data if editing
+  useEffect(() => {
+    if (initialOrder) {
+      setEditingOrderId(initialOrder.id);
+      setOrderName(initialOrder.name);
+      setNotes(initialOrder.notes || '');
+      setPhoto(initialOrder.photo || '');
+      setStaffName(initialOrder.staffName || '');
+      setStaffId(initialOrder.staffId || '');
+
+      // Convert products to OrderItems
+      const items: OrderItem[] = initialOrder.products.map(product => {
+        const markup = markupSettings[product.type];
+        const retailPrice = product.wholesaleCost * markup;
+        const totalWholesale = product.wholesaleCost * product.quantity;
+        const totalRetail = retailPrice * product.quantity;
+
+        return {
+          id: product.id,
+          name: product.name,
+          wholesaleCost: product.wholesaleCost,
+          quantity: product.quantity,
+          type: product.type,
+          retailPrice,
+          totalWholesale,
+          totalRetail
+        };
+      });
+
+      setOrderItems(items);
+    }
+  }, [initialOrder, markupSettings]);
   
   const filteredTemplates = templates.filter((template: ProductTemplate) =>
     template.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
@@ -217,8 +255,9 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     setArrangementMode('custom');
     setRecipeSearchTerm('');
     setSearchTerm('');
+    setEditingOrderId(null);
     // Keep staff info for next order
-    
+
     // Notify parent of order changes for Staff Training Mode
     if (onOrderChange) {
       onOrderChange([]);
@@ -263,15 +302,15 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       return;
     }
 
-    console.log('Creating order with items:', orderItems);
-    console.log('Current POS settings:', posSettings); // Debug log
-    
+    console.log(editingOrderId ? 'Updating order with items:' : 'Creating order with items:', orderItems);
+    console.log('Current POS settings:', posSettings);
+
     const totalWholesale = orderItems.reduce((sum: number, item: OrderItem) => sum + item.totalWholesale, 0);
     const totalRetail = orderItems.reduce((sum: number, item: OrderItem) => sum + item.totalRetail, 0);
     const profit = totalRetail - totalWholesale;
 
     const order: OrderRecord = {
-      id: Date.now().toString(),
+      id: editingOrderId || Date.now().toString(),
       name: orderName,
       date: new Date(),
       products: orderItems.map((item: OrderItem) => ({
@@ -291,28 +330,28 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     };
 
     console.log('Final order object:', order);
-    
-    // Save the order first
-    onSaveOrder(order);
-    
+
+    // Save or update the order
+    if (editingOrderId && onUpdateOrder) {
+      onUpdateOrder(editingOrderId, order);
+    } else {
+      onSaveOrder(order);
+    }
+
     // Handle POS integration based on configuration
     if (userRole === 'staff') {
       console.log('Staff mode - checking store configuration:', posSettings.isConfigured, posSettings.storeName);
       if (posSettings.isConfigured && posSettings.storeName) {
-        // Always use manual integration
         setSavedOrderForPOS(order);
         setShowPOSIntegration(true);
       } else {
         alert(`Store not configured. Please contact your manager to set up store information.
-        
+
 Debug info:
 - isConfigured: ${posSettings.isConfigured}
 - storeName: ${posSettings.storeName}`);
       }
-      // Don't clear order for staff mode to allow POS integration
     } else {
-      // For owner/manager, clear the order after successful save
-      // But add a small delay to ensure the save operation completes
       setTimeout(() => {
         clearOrder();
       }, 100);
@@ -338,9 +377,19 @@ Debug info:
       <div className="flex items-center gap-2 mb-6">
         <ShoppingCart className="w-5 h-5 text-blue-600" />
         <h2 className="text-xl font-semibold text-gray-800">
-          {userRole === 'staff' ? 'Create Arrangement' : 'Create New Order'}
+          {editingOrderId
+            ? 'Edit Order'
+            : userRole === 'staff'
+              ? 'Create Arrangement'
+              : 'Create New Order'
+          }
         </h2>
-        {userRole === 'staff' && (
+        {editingOrderId && (
+          <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded-full">
+            EDITING
+          </span>
+        )}
+        {userRole === 'staff' && !editingOrderId && (
           <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-1 rounded-full">
             STAFF MODE
           </span>
@@ -771,16 +820,18 @@ Debug info:
               className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
             >
               <ShoppingCart className="w-4 h-4" />
-              {userRole === 'staff' 
-                ? 'Save & Send to POS'
-                : 'Save Order'
+              {editingOrderId
+                ? 'Update Order'
+                : userRole === 'staff'
+                  ? 'Save & Send to POS'
+                  : 'Save Order'
               }
             </button>
             <button
               onClick={clearOrder}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
             >
-              Clear
+              {editingOrderId ? 'Cancel' : 'Clear'}
             </button>
           </div>
         </div>

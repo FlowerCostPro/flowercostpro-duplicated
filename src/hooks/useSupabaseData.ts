@@ -722,12 +722,83 @@ export const useSupabaseData = (userId: string | null) => {
     }
   };
 
+  const updateOrder = async (orderId: string, updatedOrder: OrderRecord) => {
+    if (!userId) {
+      // Demo mode - update local state and localStorage
+      const updatedOrders = savedOrders.map((order: OrderRecord) =>
+        order.id === orderId ? { ...updatedOrder, id: orderId } : order
+      );
+      setSavedOrders(updatedOrders);
+
+      try {
+        localStorage.setItem('demo_saved_orders', JSON.stringify(updatedOrders));
+        console.log('Demo mode: Order updated in localStorage');
+      } catch (error) {
+        console.error('Error updating order in localStorage:', error);
+      }
+      return;
+    }
+
+    try {
+      // Update order
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({
+          name: updatedOrder.name,
+          total_wholesale: updatedOrder.totalWholesale,
+          total_retail: updatedOrder.totalRetail,
+          profit: updatedOrder.profit,
+          photo: updatedOrder.photo,
+          notes: updatedOrder.notes,
+          staff_name: updatedOrder.staffName,
+          staff_id: updatedOrder.staffId
+        })
+        .eq('id', orderId)
+        .eq('user_id', userId);
+
+      if (orderError) throw orderError;
+
+      // Delete existing order products
+      const { error: deleteError } = await supabase
+        .from('order_products')
+        .delete()
+        .eq('order_id', orderId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new order products
+      const orderProducts = updatedOrder.products.map(product => ({
+        order_id: orderId,
+        name: product.name,
+        wholesale_cost: product.wholesaleCost,
+        quantity: product.quantity,
+        type: product.type
+      }));
+
+      const { error: productsError } = await supabase
+        .from('order_products')
+        .insert(orderProducts);
+
+      if (productsError) throw productsError;
+
+      // Update local state
+      setSavedOrders((prev: OrderRecord[]) =>
+        prev.map((order: OrderRecord) =>
+          order.id === orderId ? { ...updatedOrder, id: orderId } : order
+        )
+      );
+    } catch (error: any) {
+      console.error('Error updating order:', error);
+      throw error;
+    }
+  };
+
   const deleteOrder = async (orderId: string) => {
     if (!userId) {
       // Demo mode - remove from local state and localStorage
       const updatedOrders = savedOrders.filter((order: OrderRecord) => order.id !== orderId);
       setSavedOrders(updatedOrders);
-      
+
       try {
         localStorage.setItem('demo_saved_orders', JSON.stringify(updatedOrders));
         console.log('Demo mode: Order deleted from localStorage');
@@ -958,6 +1029,7 @@ export const useSupabaseData = (userId: string | null) => {
     deleteProductTemplate,
     saveMarkupSettings,
     saveOrder,
+    updateOrder,
     deleteOrder,
     saveArrangementRecipe,
     updateArrangementRecipe,

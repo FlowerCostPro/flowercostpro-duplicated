@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Archive, Eye, Trash2, Calendar, DollarSign, Search, SortAsc } from 'lucide-react';
+import { Archive, Eye, Trash2, Calendar, DollarSign, Search, SortAsc, Edit } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
 
 interface SavedOrdersProps {
   orders: OrderRecord[];
   onDeleteOrder: (orderId: string) => void;
+  onEditOrder: (order: OrderRecord) => void;
 }
 
-const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder }) => {
+const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEditOrder }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'profit'>('date');
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
@@ -92,6 +93,13 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder }) => {
                   title="View details"
                 >
                   <Eye className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onEditOrder(order)}
+                  className="text-gray-400 hover:text-blue-600 transition-colors"
+                  title="Edit order"
+                >
+                  <Edit className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => onDeleteOrder(order.id)}

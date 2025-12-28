@@ -135,6 +135,7 @@ function App() {
   const [isPasswordReset, setIsPasswordReset] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [currentOrderProducts, setCurrentOrderProducts] = useState<Product[]>([]);
+  const [editingOrder, setEditingOrder] = useState<OrderRecord | null>(null);
 
   const {
     profile,
@@ -150,6 +151,7 @@ function App() {
     deleteProductTemplate,
     saveMarkupSettings,
     saveOrder,
+    updateOrder,
     deleteOrder,
     saveArrangementRecipe,
     updateArrangementRecipe,
@@ -215,6 +217,14 @@ function App() {
     setIsPasswordReset(false);
   };
 
+  const handleSectionChange = (section: string) => {
+    // Clear editing order when navigating away from create-order
+    if (section !== 'create-order') {
+      setEditingOrder(null);
+    }
+    setActiveSection(section);
+  };
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -272,6 +282,21 @@ function App() {
 
   const handleOrderChange = (products: Product[]) => {
     setCurrentOrderProducts(products);
+  };
+
+  const handleEditOrder = (order: OrderRecord) => {
+    setEditingOrder(order);
+    setActiveSection('create-order');
+  };
+
+  const handleUpdateOrder = async (orderId: string, order: OrderRecord) => {
+    try {
+      await updateOrder(orderId, order);
+      setEditingOrder(null);
+    } catch (error) {
+      console.error('Error updating order:', error);
+      alert('Error updating order. Please try again.');
+    }
   };
 
   const userName = user?.user_metadata?.full_name || profile?.full_name || (user ? 'User' : 'Demo User');
@@ -341,9 +366,11 @@ function App() {
             recipes={arrangementRecipes}
             markupSettings={markupSettings}
             onSaveOrder={saveOrder}
+            onUpdateOrder={handleUpdateOrder}
             onOrderChange={handleOrderChange}
             userRole={userRole}
             posSettings={posSettings}
+            initialOrder={editingOrder || undefined}
           />
         );
       case 'products':
@@ -377,6 +404,7 @@ function App() {
           <SavedOrders
             orders={savedOrders}
             onDeleteOrder={deleteOrder}
+            onEditOrder={handleEditOrder}
           />
         );
       case 'analytics':
@@ -428,7 +456,7 @@ function App() {
         storeName={storeName}
         onRoleChange={setUserRole}
         activeSection={activeSection}
-        onSectionChange={setActiveSection}
+        onSectionChange={handleSectionChange}
         onLogout={handleLogout}
         onShowFeedback={handleShowFeedback}
       >
