@@ -71,9 +71,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShow
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center gap-3">
-              <img 
-                src="/image.png" 
-                alt="FlowerCost Pro" 
+              <img
+                src="/logo.jpg"
+                alt="FlowerCost Pro"
                 className="h-36 w-auto"
               />
             </div>
@@ -622,9 +622,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShow
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <img 
-                  src="/image.png" 
-                  alt="FlowerCost Pro" 
+                <img
+                  src="/logo.jpg"
+                  alt="FlowerCost Pro"
                   className="h-24 w-auto"
                 />
               </div>
