@@ -88,7 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <img
-              src="/logo.svg"
+              src="/logo.jpg"
               alt="FlowerCost Pro"
               className={sidebarOpen ? "h-16 w-auto" : "h-10 w-10"}
             />
