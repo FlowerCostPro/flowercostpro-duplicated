@@ -87,15 +87,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <img 
-              src="/image.png" 
-              alt="FlowerCost Pro" 
-              className="h-36 w-auto"
+            <img
+              src="/logo.svg"
+              alt="FlowerCost Pro"
+              className={sidebarOpen ? "h-16 w-auto" : "h-10 w-10"}
             />
             {sidebarOpen && (
               <div>
-                <h1 className="font-bold text-gray-800 text-sm">FlowerCost Pro</h1>
-                <p className="text-xs text-gray-500">{storeName || 'Your Flower Shop'}</p>
+                <p className="text-xs text-gray-500 mt-1">{storeName || 'Your Flower Shop'}</p>
               </div>
             )}
           </div>
