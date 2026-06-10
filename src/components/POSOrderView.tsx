@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Receipt, Upload, X, DollarSign, Package, TrendingUp, Copy, FileText } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
+import { useToast } from './Toast';
 
 interface POSOrderViewProps {
   orders: OrderRecord[];
 }
 
 const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
+  const { showToast } = useToast();
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showOrderSelector, setShowOrderSelector] = useState(false);
@@ -78,7 +80,7 @@ const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
     
     try {
       await navigator.clipboard.writeText(posText);
-      alert('Order details copied to clipboard! You can now paste this into your POS system.');
+      showToast('Order details copied to clipboard! You can now paste this into your POS system.', 'success');
     } catch (err) {
       // Fallback for browsers that don't support clipboard API
       const textArea = document.createElement('textarea');
@@ -87,7 +89,7 @@ const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      alert('Order details copied to clipboard! You can now paste this into your POS system.');
+      showToast('Order details copied to clipboard! You can now paste this into your POS system.', 'success');
     }
   };
 

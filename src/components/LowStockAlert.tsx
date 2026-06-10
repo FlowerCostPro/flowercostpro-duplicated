@@ -34,7 +34,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
     <button
       onClick={() => onDismiss(template.id)}
       className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
-      title="Dismiss alert"
+      title="Remove alert (clears low stock threshold)"
     >
       <X className="w-4 h-4" />
     </button>
@@ -102,10 +102,8 @@ interface LowStockAlertProps {
 
 const LowStockAlert: React.FC<LowStockAlertProps> = ({ templates, onUpdateTemplate }) => {
   const [restockAmounts, setRestockAmounts] = useState<Record<string, string>>({});
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const lowStockItems = templates.filter(t => {
-    if (dismissed.has(t.id)) return false;
     if (t.inventoryCount === undefined) return false;
     if (t.inventoryCount === 0) return true;
     if (t.lowStockThreshold !== undefined && t.inventoryCount <= t.lowStockThreshold) return true;
@@ -125,9 +123,6 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({ templates, onUpdateTempla
     const newCount = (template.inventoryCount ?? 0) + amount;
     onUpdateTemplate(template.id, { inventoryCount: newCount });
     setRestockAmounts(prev => { const n = { ...prev }; delete n[template.id]; return n; });
-    if (template.lowStockThreshold === undefined || newCount > template.lowStockThreshold) {
-      setDismissed(prev => new Set(prev).add(template.id));
-    }
   };
 
   const handleSetStock = (template: ProductTemplate) => {
@@ -135,13 +130,11 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({ templates, onUpdateTempla
     if (isNaN(amount) || amount < 0) return;
     onUpdateTemplate(template.id, { inventoryCount: amount });
     setRestockAmounts(prev => { const n = { ...prev }; delete n[template.id]; return n; });
-    if (template.lowStockThreshold === undefined || amount > template.lowStockThreshold) {
-      setDismissed(prev => new Set(prev).add(template.id));
-    }
   };
 
   const handleDismiss = (id: string) => {
-    setDismissed(prev => new Set(prev).add(id));
+    // Clear the low stock threshold so this item no longer triggers an alert
+    onUpdateTemplate(id, { lowStockThreshold: undefined });
   };
 
   if (lowStockItems.length === 0) {
@@ -168,7 +161,7 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({ templates, onUpdateTempla
           </span>
         </div>
         <p className="text-gray-600 text-sm">
-          Restock items directly from this page or dismiss alerts with the X button. Restocked items leave the list automatically.
+          Restock items directly from this page. Use the X button to permanently remove an alert (this clears the threshold — you can set a new one in Product Library).
         </p>
         <div className="flex gap-4 mt-4">
           {outOfStock.length > 0 && (

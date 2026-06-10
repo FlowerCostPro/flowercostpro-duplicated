@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle, AlertCircle, Copy, Download } from 'lucide-react';
 import { OrderRecord, POSSettings } from '../types/Product';
+import { useToast } from './Toast';
 
 interface POSIntegrationProps {
   order: OrderRecord;
@@ -9,6 +10,7 @@ interface POSIntegrationProps {
 }
 
 const POSIntegration: React.FC<POSIntegrationProps> = ({ order, posSettings, onClose }) => {
+  const { showToast } = useToast();
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const generateOrderData = () => {
@@ -75,22 +77,10 @@ const POSIntegration: React.FC<POSIntegrationProps> = ({ order, posSettings, onC
       await navigator.clipboard.writeText(posText);
       console.log('Clipboard write successful'); // Debug log
       setConnectionStatus('success');
-      
-      // Show success message with clear instructions
-      const posSystemName = 'your POS system';
-      alert(`✅ SUCCESS! Order details copied to clipboard!
+      showToast(`Order copied! Open your POS, create a sale for $${order.totalRetail.toFixed(2)}, and paste in the notes field.`, 'success');
 
-📋 NEXT STEPS:
-1. Go to your ${posSystemName}
-2. Create a new sale for $${order.totalRetail.toFixed(2)}
-3. In the notes/description field, press Ctrl+V (or Cmd+V on Mac) to paste
-4. Process customer payment
-
-👤 Staff: ${order.staffName} will be recorded with this sale.`);
-      
     } catch (err) {
-      console.error('Clipboard API failed:', err); // Debug log
-      // Fallback for older browsers
+      console.error('Clipboard API failed:', err);
       try {
         const textArea = document.createElement('textarea');
         textArea.value = posText;
@@ -103,28 +93,17 @@ const POSIntegration: React.FC<POSIntegrationProps> = ({ order, posSettings, onC
         textArea.select();
         const successful = document.execCommand('copy');
         document.body.removeChild(textArea);
-        
-        console.log('Fallback copy result:', successful); // Debug log
-        
+
         if (successful) {
           setConnectionStatus('success');
-          const posSystemName = 'your POS system';
-          alert(`✅ SUCCESS! Order details copied to clipboard!
-
-📋 NEXT STEPS:
-1. Go to your ${posSystemName}
-2. Create a new sale for $${order.totalRetail.toFixed(2)}
-3. In the notes/description field, press Ctrl+V (or Cmd+V on Mac) to paste
-4. Process customer payment
-
-👤 Staff: ${order.staffName} will be recorded with this sale.`);
+          showToast(`Order copied! Open your POS, create a sale for $${order.totalRetail.toFixed(2)}, and paste in the notes field.`, 'success');
         } else {
           throw new Error('Copy command failed');
         }
       } catch (fallbackErr) {
-        console.error('Fallback copy also failed:', fallbackErr); // Debug log
+        console.error('Fallback copy also failed:', fallbackErr);
         setConnectionStatus('error');
-        alert('❌ Copy failed. The manual copy area will appear below - please select all text and copy it manually.');
+        showToast('Copy failed. Use the manual copy area below — select all text and copy it manually.', 'error');
       }
     }
   };

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Library, CreditCard as Edit2, Trash2, Clock, Search, ListFilter as Filter } from 'lucide-react';
 import { ProductTemplate, MarkupSettings } from '../types/Product';
+import { useToast } from './Toast';
 
 interface ProductLibraryProps {
   templates: ProductTemplate[];
@@ -15,6 +16,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
   onUpdateTemplate,
   onDeleteTemplate
 }) => {
+  const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
@@ -49,7 +51,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
     if (!editingTemplate) return;
 
     if (!editForm.name.trim() || !editForm.wholesaleCost || parseFloat(editForm.wholesaleCost) <= 0) {
-      alert('Please enter a valid product name and wholesale cost.');
+      showToast('Please enter a valid product name and wholesale cost.', 'warning');
       return;
     }
 

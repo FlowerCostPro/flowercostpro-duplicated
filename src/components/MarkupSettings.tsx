@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Save } from 'lucide-react';
 import { MarkupSettings } from '../types/Product';
+import { useToast } from './Toast';
 
 interface MarkupSettingsProps {
   markupSettings: MarkupSettings;
@@ -8,9 +9,10 @@ interface MarkupSettingsProps {
 }
 
 const MarkupSettingsComponent: React.FC<MarkupSettingsProps> = ({
-  markupSettings, 
-  onMarkupChange 
+  markupSettings,
+  onMarkupChange
 }) => {
+  const { showToast } = useToast();
   const [localSettings, setLocalSettings] = useState<MarkupSettings>(markupSettings);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -37,10 +39,10 @@ const MarkupSettingsComponent: React.FC<MarkupSettingsProps> = ({
       onMarkupChange(localSettings);
       setHasChanges(false);
       console.log('MarkupSettings: Settings saved successfully');
-      alert('Markup settings saved successfully!');
+      showToast('Markup settings saved successfully!', 'success');
     } catch (error) {
       console.error('MarkupSettings: Error saving settings:', error);
-      alert('Error saving markup settings. Please try again.');
+      showToast('Error saving markup settings. Please try again.', 'error');
     }
   };
 

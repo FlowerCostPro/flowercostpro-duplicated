@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { ShoppingCart, Plus, Minus, Search, X, Camera, RefreshCw } from 'lucide-react';
 import { Product, MarkupSettings, ProductTemplate, OrderRecord, ArrangementRecipe, POSSettings } from '../types/Product';
 import POSIntegration from './POSIntegration';
+import { useToast } from './Toast';
 
 interface OrderBuilderProps {
   templates: ProductTemplate[];
@@ -32,6 +33,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   posSettings,
   initialOrder
 }) => {
+  const { showToast } = useToast();
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [orderName, setOrderName] = useState('');
@@ -159,7 +161,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     });
 
     if (missingIngredients.length > 0) {
-      alert(`Missing ingredients in your library: ${missingIngredients.join(', ')}. Please add these items to your product library first.`);
+      showToast(`Missing ingredients: ${missingIngredients.join(', ')}. Add these to your product library first.`, 'warning');
       return;
     }
 
@@ -291,15 +293,15 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   const handleSaveOrder = () => {
     if (!orderName.trim() || orderItems.length === 0) {
       if (!orderName.trim()) {
-        alert('Please enter an order name before saving.');
+        showToast('Please enter an order name before saving.', 'warning');
       } else {
-        alert('Please add at least one item to the order.');
+        showToast('Please add at least one item to the order.', 'warning');
       }
       return;
     }
 
     if (userRole === 'staff' && !staffName.trim()) {
-      alert('Please enter your name before saving the order.');
+      showToast('Please enter your name before saving the order.', 'warning');
       return;
     }
 
@@ -346,11 +348,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         setSavedOrderForPOS(order);
         setShowPOSIntegration(true);
       } else {
-        alert(`Store not configured. Please contact your manager to set up store information.
-
-Debug info:
-- isConfigured: ${posSettings.isConfigured}
-- storeName: ${posSettings.storeName}`);
+        showToast('Store not configured. Please ask your manager to set up store information in Settings.', 'warning');
       }
     } else {
       setTimeout(() => {

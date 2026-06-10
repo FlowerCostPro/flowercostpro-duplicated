@@ -1,5 +1,5 @@
 import React, { useState, useEffect, FormEvent, FC } from 'react';
-import { Eye, EyeOff, LogIn, UserPlus, Loader2, Key } from 'lucide-react';
+import { Eye, EyeOff, LogIn, UserPlus, Loader as Loader2, Key } from 'lucide-react';
 import { signIn, signUp, supabase } from '../lib/supabase';
 
 interface AuthProps {
@@ -45,9 +45,8 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
         });
         if (error) throw error;
         
-        alert('Password updated successfully! You are now signed in.');
+        setMessage('Password updated successfully! You are now signed in.');
         onAuthSuccess();
-        return;
       }
 
       if (isSignUp) {
@@ -69,7 +68,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
           const { error: signInError } = await signIn(trimmedEmail, formData.password);
           if (signInError) {
             // If immediate sign-in fails, show message to check email
-            alert('Account created! Please check your email for confirmation, then sign in.');
+            setMessage('Account created! Please check your email for confirmation, then sign in.');
             setIsSignUp(false);
             resetForm();
           } else {
@@ -77,7 +76,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
             onAuthSuccess();
           }
         } catch (signInError) {
-          alert('Account created! Please check your email for confirmation, then sign in.');
+          setMessage('Account created! Please check your email for confirmation, then sign in.');
           setIsSignUp(false);
           resetForm();
         }

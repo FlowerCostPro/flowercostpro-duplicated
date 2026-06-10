@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Save } from 'lucide-react';
 import { POSSettings } from '../types/Product';
+import { useToast } from './Toast';
 
 interface POSConfigurationProps {
   posSettings: POSSettings;
@@ -11,6 +12,7 @@ const POSConfiguration: React.FC<POSConfigurationProps> = ({
   posSettings,
   onUpdateSettings
 }) => {
+  const { showToast } = useToast();
   const [settings, setSettings] = useState<POSSettings>(posSettings);
 
   // Update local state when parent state changes (e.g., after loading from localStorage)
@@ -21,7 +23,7 @@ const POSConfiguration: React.FC<POSConfigurationProps> = ({
 
   const handleSave = () => {
     if (!settings.storeName.trim()) {
-      alert('Please enter a store name before saving.');
+      showToast('Please enter a store name before saving.', 'warning');
       return;
     }
     
@@ -39,7 +41,7 @@ const POSConfiguration: React.FC<POSConfigurationProps> = ({
     setSettings(updatedSettings);
     
     // Show success message
-    alert('Store settings saved successfully!');
+    showToast('Store settings saved successfully!', 'success');
   };
 
   return (

@@ -20,12 +20,14 @@ import { supabase, getCurrentUser } from './lib/supabase';
 import { useSupabaseData } from './hooks/useSupabaseData';
 import { Product, ProductTemplate, OrderRecord } from './types/Product';
 import { UserRole } from './types/shared';
+import { useToast } from './components/Toast';
 
 interface FeedbackModalProps {
   onClose: () => void;
 }
 
 const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +35,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !feedback.trim()) {
-      alert('Please fill in both email and feedback fields.');
+      showToast('Please fill in both email and feedback fields.', 'warning');
       return;
     }
 
@@ -48,12 +50,12 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
         });
 
       if (error) throw error;
-      
-      alert('Thank you for your feedback! We really appreciate it.');
+
+      showToast('Thank you for your feedback! We really appreciate it.', 'success');
       onClose();
     } catch (error) {
       console.error('Feedback submission error:', error);
-      alert('There was an error submitting your feedback. Please try again.');
+      showToast('There was an error submitting your feedback. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -130,6 +132,7 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
 }
 
 function App() {
+  const { showToast } = useToast();
   const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'dashboard'>('landing');
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<UserRole>('owner');
@@ -278,7 +281,7 @@ function App() {
       }
     } catch (error) {
       console.error('Error adding product:', error);
-      alert('Error adding product. Please try again.');
+      showToast('Error adding product. Please try again.', 'error');
     }
   };
 
@@ -295,11 +298,11 @@ function App() {
     try {
       await updateOrder(orderId, order);
       setEditingOrder(null);
-      alert('Order updated successfully!');
+      showToast('Order updated successfully!', 'success');
     } catch (error: any) {
       console.error('Error updating order:', error);
       const errorMessage = error.message || 'Unknown error occurred';
-      alert(`Error updating order: ${errorMessage}\n\nPlease check the console for more details.`);
+      showToast(`Error updating order: ${errorMessage}`, 'error');
     }
   };
 

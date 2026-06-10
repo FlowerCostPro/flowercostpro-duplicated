@@ -1,6 +1,7 @@
 import React, { useState, ChangeEvent } from 'react';
-import { BookOpen, Plus, Calculator, Edit2, Trash2, ExternalLink, Save, X } from 'lucide-react';
+import { BookOpen, Plus, Calculator, CreditCard as Edit2, Trash2, ExternalLink, Save, X } from 'lucide-react';
 import { ArrangementRecipe, RecipeIngredient, ProductTemplate, MarkupSettings } from '../types/Product';
+import { useToast } from './Toast';
 
 interface ArrangementRecipesProps {
   recipes: ArrangementRecipe[];
@@ -19,6 +20,7 @@ const ArrangementRecipes = ({
   onDeleteRecipe,
   onUpdateRecipe
 }: ArrangementRecipesProps) => {
+  const { showToast } = useToast();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<string | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<ArrangementRecipe | null>(null);
@@ -134,7 +136,7 @@ const ArrangementRecipes = ({
 
   const saveRecipe = () => {
     if (!newRecipe.name || newRecipe.ingredients.length === 0) {
-      alert('Please enter a recipe name and add at least one ingredient.');
+      showToast('Please enter a recipe name and add at least one ingredient.', 'warning');
       return;
     }
 
@@ -168,7 +170,7 @@ const ArrangementRecipes = ({
       setShowAddForm(false);
     } catch (error) {
       console.error('Error creating recipe:', error);
-      alert('Error saving recipe. Please check your data and try again.');
+      showToast('Error saving recipe. Please check your data and try again.', 'error');
     }
   };
 
@@ -186,7 +188,7 @@ const ArrangementRecipes = ({
 
   const saveEditRecipe = () => {
     if (!editRecipe.name || editRecipe.ingredients.length === 0) {
-      alert('Please enter a recipe name and add at least one ingredient.');
+      showToast('Please enter a recipe name and add at least one ingredient.', 'warning');
       return;
     }
 

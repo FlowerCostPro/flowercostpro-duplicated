@@ -1,6 +1,7 @@
 import React, { useState, FormEvent } from 'react';
 import { Plus } from 'lucide-react';
 import { Product, ProductTemplate } from '../types/Product';
+import { useToast } from './Toast';
 
 interface ProductFormProps {
   onAddProduct: (product: Omit<Product, 'id'>) => void;
@@ -8,6 +9,7 @@ interface ProductFormProps {
 }
 
 const ProductForm: React.FC<ProductFormProps> = ({ onAddProduct, existingTemplates }) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     wholesaleCost: '',
@@ -27,7 +29,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ onAddProduct, existingTemplat
     const wholesaleCost = formData.wholesaleCost || (existingProduct?.wholesaleCost.toString() || '');
 
     if (!formData.name || !wholesaleCost) {
-      alert('Please enter a product name and wholesale cost.');
+      showToast('Please enter a product name and wholesale cost.', 'warning');
       return;
     }
 

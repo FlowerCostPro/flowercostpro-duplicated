@@ -459,11 +459,11 @@ export const useSupabaseData = (userId: string | null) => {
       if (updates.lastUsed !== undefined) updateData.last_used = updates.lastUsed.toISOString();
 
       // Only update inventory fields if explicitly provided
-      if ('inventoryCount' in updates && updates.inventoryCount !== undefined) {
-        updateData.inventory_count = updates.inventoryCount;
+      if ('inventoryCount' in updates) {
+        updateData.inventory_count = updates.inventoryCount !== undefined ? updates.inventoryCount : null;
       }
-      if ('lowStockThreshold' in updates && updates.lowStockThreshold !== undefined) {
-        updateData.low_stock_threshold = updates.lowStockThreshold;
+      if ('lowStockThreshold' in updates) {
+        updateData.low_stock_threshold = updates.lowStockThreshold !== undefined ? updates.lowStockThreshold : null;
       }
 
       console.log('Updating product template:', templateId, 'with data:', updateData);

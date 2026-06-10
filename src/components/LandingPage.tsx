@@ -1,19 +1,7 @@
 import React, { useState, FormEvent } from 'react';
-import { 
-  DollarSign, 
-  Users, 
-  TrendingUp, 
-  CheckCircle, 
-  ArrowRight, 
-  Play,
-  Star,
-  Shield,
-  Clock,
-  Target,
-  BarChart3,
-  Smartphone
-} from 'lucide-react';
+import { DollarSign, Users, TrendingUp, CircleCheck as CheckCircle, ArrowRight, Play, Star, Shield, Clock, Target, ChartBar as BarChart3, Smartphone } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useToast } from './Toast';
 
 interface LandingPageProps {
   onStartDemo: () => void;
@@ -22,6 +10,7 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShowFeedback }) => {
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
 
   const handleGetStarted = () => {
@@ -48,18 +37,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShow
       if (error) {
         // Handle duplicate email error gracefully
         if (error.code === '23505') {
-          alert(`Thanks! ${email} is already on our notification list.`);
+          showToast(`${email} is already on our notification list.`, 'info');
         } else {
           throw error;
         }
       } else {
-        alert(`Thanks! We'll notify ${email} when FlowerCost Pro launches.`);
+        showToast(`Thanks! We'll notify ${email} when FlowerCost Pro launches.`, 'success');
       }
       
       setEmail('');
     } catch (error) {
       console.error('Email signup error:', error);
-      alert('There was an error signing up. Please try again.');
+      showToast('There was an error signing up. Please try again.', 'error');
     }
   };
 
