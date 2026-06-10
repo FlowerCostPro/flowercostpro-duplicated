@@ -694,7 +694,16 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="w-12 text-center font-medium">{item.quantity}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={e => {
+                          const val = parseInt(e.target.value);
+                          if (!isNaN(val) && val > 0) updateItemQuantity(item.id, val);
+                        }}
+                        className="w-14 text-center font-medium border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
                       <button
                         onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
                         className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
