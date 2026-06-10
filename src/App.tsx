@@ -17,7 +17,8 @@ import POSConfiguration from './components/POSConfiguration';
 import POSOrderView from './components/POSOrderView';
 import { supabase, getCurrentUser } from './lib/supabase';
 import { useSupabaseData } from './hooks/useSupabaseData';
-import { Product, ProductTemplate, UserRole } from './types/Product';
+import { Product, ProductTemplate, OrderRecord } from './types/Product';
+import { UserRole } from './types/shared';
 
 interface FeedbackModalProps {
   onClose: () => void;
