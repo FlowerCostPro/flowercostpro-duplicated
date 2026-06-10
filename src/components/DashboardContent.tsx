@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Package, ShoppingCart, Users, DollarSign, Award } from 'lucide-react';
+import { TrendingUp, Package, ShoppingCart, Users, DollarSign, Award, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { OrderRecord, ProductTemplate } from '../types/Product';
 
 interface DashboardContentProps {
@@ -7,6 +7,7 @@ interface DashboardContentProps {
   userRole: 'owner' | 'manager' | 'staff';
   orders: OrderRecord[];
   templates: ProductTemplate[];
+  onSectionChange: (section: string) => void;
   children: React.ReactNode;
 }
 
@@ -15,6 +16,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   userRole,
   orders,
   templates,
+  onSectionChange,
   children
 }) => {
   if (activeSection !== 'overview') {
@@ -247,6 +249,54 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
           </div>
         )}
       </div>
+
+      {/* Low Stock Alert Widget - Owner/Manager Only */}
+      {(userRole === 'owner' || userRole === 'manager') && (() => {
+        const lowStockItems = templates.filter(t => {
+          if (t.inventoryCount === undefined) return false;
+          if (t.inventoryCount === 0) return true;
+          if (t.lowStockThreshold !== undefined && t.inventoryCount <= t.lowStockThreshold) return true;
+          return false;
+        });
+        if (lowStockItems.length === 0) return null;
+        return (
+          <div className="bg-white rounded-lg shadow-md p-6 border border-amber-200">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                Stock Alerts
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  {lowStockItems.length}
+                </span>
+              </h4>
+              <button
+                onClick={() => onSectionChange('low-stock')}
+                className="text-sm text-amber-600 hover:text-amber-700 font-medium hover:underline"
+              >
+                View all &rarr;
+              </button>
+            </div>
+            <div className="space-y-2">
+              {lowStockItems.slice(0, 4).map(t => (
+                <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-amber-50 border border-amber-100">
+                  <span className="text-sm font-medium text-gray-800">{t.name}</span>
+                  <span className={`text-sm font-bold ${t.inventoryCount === 0 ? 'text-red-600' : 'text-amber-600'}`}>
+                    {t.inventoryCount === 0 ? 'Out of stock' : `${t.inventoryCount} left`}
+                  </span>
+                </div>
+              ))}
+              {lowStockItems.length > 4 && (
+                <button
+                  onClick={() => onSectionChange('low-stock')}
+                  className="w-full text-center text-sm text-amber-600 hover:text-amber-700 py-1 font-medium"
+                >
+                  +{lowStockItems.length - 4} more items need attention
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Quick Start Guide */}
       <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">

@@ -15,6 +15,7 @@ import BusinessInsights from './components/BusinessInsights';
 import StaffTrainingMode from './components/StaffTrainingMode';
 import POSConfiguration from './components/POSConfiguration';
 import POSOrderView from './components/POSOrderView';
+import LowStockAlert from './components/LowStockAlert';
 import { supabase, getCurrentUser } from './lib/supabase';
 import { useSupabaseData } from './hooks/useSupabaseData';
 import { Product, ProductTemplate, OrderRecord } from './types/Product';
@@ -376,6 +377,13 @@ function App() {
             initialOrder={editingOrder || undefined}
           />
         );
+      case 'low-stock':
+        return (
+          <LowStockAlert
+            templates={productTemplates}
+            onUpdateTemplate={updateProductTemplate}
+          />
+        );
       case 'products':
         return (
           <div className="space-y-6">
@@ -462,12 +470,14 @@ function App() {
         onSectionChange={handleSectionChange}
         onLogout={handleLogout}
         onShowFeedback={handleShowFeedback}
+        templates={productTemplates}
       >
         <DashboardContent
           activeSection={activeSection}
           userRole={userRole}
           orders={savedOrders}
           templates={productTemplates}
+          onSectionChange={handleSectionChange}
         >
           {renderActiveSection()}
         </DashboardContent>

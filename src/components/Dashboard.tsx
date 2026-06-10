@@ -1,18 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Package, 
-  Settings, 
-  TrendingUp, 
-  BookOpen, 
-  ShoppingCart,
-  User,
-  Crown,
-  Shield,
-  LogOut,
-  MessageSquare
-} from 'lucide-react';
+import { LayoutDashboard, Users, Package, Settings, TrendingUp, BookOpen, ShoppingCart, User, Crown, Shield, LogOut, MessageSquare, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { ProductTemplate } from '../types/Product';
 
 interface DashboardProps {
   userRole: 'owner' | 'manager' | 'staff';
@@ -23,6 +11,7 @@ interface DashboardProps {
   onSectionChange: (section: string) => void;
   onLogout: () => void;
   onShowFeedback: () => void;
+  templates: ProductTemplate[];
   children: React.ReactNode;
 }
 
@@ -35,9 +24,17 @@ const Dashboard: React.FC<DashboardProps> = ({
   onSectionChange,
   onLogout,
   onShowFeedback,
+  templates,
   children
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const lowStockCount = templates.filter(t => {
+    if (t.inventoryCount === undefined) return false;
+    if (t.inventoryCount === 0) return true;
+    if (t.lowStockThreshold !== undefined && t.inventoryCount <= t.lowStockThreshold) return true;
+    return false;
+  }).length;
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -65,6 +62,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     { id: 'settings', label: 'Settings', icon: Settings, roles: ['owner'] },
     { id: 'products', label: 'Product Library', icon: Package, roles: ['owner', 'manager'] },
     { id: 'recipes', label: 'Arrangement Recipes', icon: BookOpen, roles: ['owner', 'manager'] },
+    { id: 'low-stock', label: 'Low Stock', icon: AlertTriangle, roles: ['owner', 'manager'] },
     
     // Daily operations - All roles
     { id: 'create-order', label: 'Create Order', icon: ShoppingCart, roles: ['owner', 'manager', 'staff'] },
@@ -130,13 +128,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     onClick={() => onSectionChange(item.id)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                      isActive 
-                        ? 'bg-green-100 text-green-700 border border-green-200' 
+                      isActive
+                        ? 'bg-green-100 text-green-700 border border-green-200'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
-                    <IconComponent className="w-5 h-5" />
-                    {sidebarOpen && <span className="font-medium">{item.label}</span>}
+                    <IconComponent className="w-5 h-5 flex-shrink-0" />
+                    {sidebarOpen && (
+                      <span className="font-medium flex-1 text-left">{item.label}</span>
+                    )}
+                    {item.id === 'low-stock' && lowStockCount > 0 && (
+                      <span className={`${sidebarOpen ? '' : 'absolute top-0 right-0'} min-w-[1.25rem] h-5 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full px-1`}>
+                        {lowStockCount}
+                      </span>
+                    )}
                   </button>
                 </li>
               );
