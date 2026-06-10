@@ -18,7 +18,7 @@ interface ItemCardProps {
   onRestockChange: (id: string, value: string) => void;
   onRestock: (template: ProductTemplate) => void;
   onSetStock: (template: ProductTemplate) => void;
-  onDismiss: (id: string) => void;
+  onDismiss: (template: ProductTemplate) => void;
 }
 
 const ItemCard: React.FC<ItemCardProps> = ({
@@ -32,9 +32,9 @@ const ItemCard: React.FC<ItemCardProps> = ({
 }) => (
   <div className={`border rounded-lg p-4 relative ${isOutOfStock ? 'border-red-300 bg-red-50' : 'border-amber-300 bg-amber-50'}`}>
     <button
-      onClick={() => onDismiss(template.id)}
+      onClick={() => onDismiss(template)}
       className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
-      title="Remove alert (clears low stock threshold)"
+      title={isOutOfStock ? 'Remove from list (clears inventory tracking)' : 'Remove alert (clears low stock threshold)'}
     >
       <X className="w-4 h-4" />
     </button>
@@ -132,9 +132,14 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({ templates, onUpdateTempla
     setRestockAmounts(prev => { const n = { ...prev }; delete n[template.id]; return n; });
   };
 
-  const handleDismiss = (id: string) => {
-    // Clear the low stock threshold so this item no longer triggers an alert
-    onUpdateTemplate(id, { lowStockThreshold: undefined });
+  const handleDismiss = (template: ProductTemplate) => {
+    if (template.inventoryCount === 0) {
+      // Out-of-stock item: clear inventory tracking entirely so it leaves the list
+      onUpdateTemplate(template.id, { inventoryCount: undefined, lowStockThreshold: undefined });
+    } else {
+      // Low-stock item: clear the threshold so it no longer triggers an alert
+      onUpdateTemplate(template.id, { lowStockThreshold: undefined });
+    }
   };
 
   if (lowStockItems.length === 0) {
