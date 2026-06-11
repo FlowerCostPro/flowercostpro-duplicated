@@ -377,7 +377,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
             'text/plain': new Blob([plainText], { type: 'text/plain' }),
           })
         ]);
-        showToast(photo ? 'Copied! Paste into email to see photo + details.' : 'Order details copied!', 'success');
+        showToast(photo ? 'Copied! Paste into your POS notes to include photo + details.' : 'Order details copied!', 'success');
         return;
       } catch {
         // fall through
@@ -982,7 +982,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
             </button>
             <button
               onClick={handleCopyWithPhoto}
-              title="Copy order details and photo for email"
+              title={photo ? 'Copy details + photo for POS notes' : 'Copy order details'}
               className="px-4 py-2 border border-blue-400 text-blue-700 rounded-md hover:bg-blue-50 transition-colors flex items-center gap-2 whitespace-nowrap"
             >
               <Image className="w-4 h-4" />

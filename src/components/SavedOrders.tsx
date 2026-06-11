@@ -87,7 +87,7 @@ const copyWithPhoto = async (order: OrderRecord): Promise<string> => {
           'text/plain': new Blob([plainText], { type: 'text/plain' }),
         })
       ]);
-      return order.photo ? 'Copied! Paste into email to see photo + details.' : 'Order details copied!';
+      return order.photo ? 'Copied! Paste into your POS notes to include photo + details.' : 'Order details copied!';
     } catch {
       // fall through
     }
@@ -234,7 +234,7 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                 <button
                   onClick={() => handleCopyWithPhoto(order)}
                   className="text-gray-400 hover:text-blue-600 transition-colors"
-                  title={order.photo ? 'Copy details + photo for email' : 'Copy order details'}
+                  title={order.photo ? 'Copy details + photo for POS notes' : 'Copy order details'}
                 >
                   <Image className="w-4 h-4" />
                 </button>
