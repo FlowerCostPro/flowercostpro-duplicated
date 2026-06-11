@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy } from 'lucide-react';
+import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy, Image } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
 
 interface SavedOrdersProps {
@@ -22,7 +22,7 @@ const dataUrlToPngBlob = (dataUrl: string): Promise<Blob> =>
     img.src = dataUrl;
   });
 
-const copyOrderForPOS = async (order: OrderRecord): Promise<string> => {
+const copyRecipeText = async (order: OrderRecord): Promise<string> => {
   const lines: string[] = [];
   lines.push('='.repeat(50));
   lines.push(`ARRANGEMENT: ${order.name}`);
@@ -46,30 +46,22 @@ const copyOrderForPOS = async (order: OrderRecord): Promise<string> => {
   lines.push('');
   lines.push(`TOTAL: $${order.totalRetail.toFixed(2)}`);
   lines.push('='.repeat(50));
-  const text = lines.join('\n');
-
-  if (order.photo && typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
-    try {
-      const pngBlob = await dataUrlToPngBlob(order.photo);
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/plain': new Blob([text], { type: 'text/plain' }),
-          'image/png': pngBlob,
-        })
-      ]);
-      return 'Recipe + photo copied! Paste text into POS notes, paste image into image fields.';
-    } catch {
-      // fall through
-    }
-  }
-
   try {
-    await navigator.clipboard.writeText(text);
-    return order.photo
-      ? 'Recipe copied (photo copy not supported in this browser).'
-      : 'Order copied! Paste into your POS notes field.';
+    await navigator.clipboard.writeText(lines.join('\n'));
+    return 'Recipe text copied! Paste into your POS notes field.';
   } catch {
     return 'Could not access clipboard. Try again or use a different browser.';
+  }
+};
+
+const copyPhoto = async (order: OrderRecord): Promise<string> => {
+  if (!order.photo) return 'No photo attached to this order.';
+  try {
+    const pngBlob = await dataUrlToPngBlob(order.photo);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+    return 'Photo copied! Paste it into any image field.';
+  } catch {
+    return 'Could not copy photo. Try right-clicking the image and choosing Copy Image.';
   }
 };
 
@@ -86,7 +78,11 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
   };
 
   const handleCopy = async (order: OrderRecord) => {
-    showMessage(await copyOrderForPOS(order));
+    showMessage(await copyRecipeText(order));
+  };
+
+  const handleCopyPhoto = async (order: OrderRecord) => {
+    showMessage(await copyPhoto(order));
   };
 
   if (orders.length === 0) {
@@ -179,10 +175,19 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                 <button
                   onClick={() => handleCopy(order)}
                   className="text-gray-400 hover:text-emerald-600 transition-colors"
-                  title="Copy recipe text for POS"
+                  title="Copy recipe text"
                 >
                   <Copy className="w-4 h-4" />
                 </button>
+                {order.photo && (
+                  <button
+                    onClick={() => handleCopyPhoto(order)}
+                    className="text-gray-400 hover:text-blue-600 transition-colors"
+                    title="Copy photo to clipboard"
+                  >
+                    <Image className="w-4 h-4" />
+                  </button>
+                )}
                 <button
                   onClick={() => onEditOrder(order)}
                   className="text-gray-400 hover:text-blue-600 transition-colors"
@@ -242,8 +247,17 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                     className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md text-sm font-medium transition-colors"
                   >
                     <Copy className="w-3.5 h-3.5" />
-                    Copy for POS
+                    Copy Recipe
                   </button>
+                  {selectedOrder.photo && (
+                    <button
+                      onClick={() => handleCopyPhoto(selectedOrder)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-sm font-medium transition-colors"
+                    >
+                      <Image className="w-3.5 h-3.5" />
+                      Copy Photo
+                    </button>
+                  )}
                   <button
                     onClick={() => setSelectedOrder(null)}
                     className="text-gray-400 hover:text-gray-600"
