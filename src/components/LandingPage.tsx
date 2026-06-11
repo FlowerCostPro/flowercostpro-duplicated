@@ -483,23 +483,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShow
             <h2 className="text-4xl font-bold text-gray-900 mb-6">
               Simple, Transparent Pricing
             </h2>
-            <p className="text-xl text-gray-600">
-              One price, all features. Cancel anytime.
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              One plan for every florist. Every feature included. Unlimited designers. Cancel anytime.
             </p>
           </div>
 
           <div className="max-w-lg mx-auto">
             <div className="bg-white rounded-2xl shadow-2xl border-2 border-green-500 relative">
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <div className="bg-green-500 text-white px-6 py-2 rounded-full text-sm font-bold">
-                  MOST POPULAR
-                </div>
-              </div>
-              
               <div className="p-8 text-center">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">FlowerCost Pro</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">FlowerCostPro</h3>
                 <div className="mb-6">
-                  <span className="text-5xl font-bold text-gray-900">$39</span>
+                  <span className="text-5xl font-bold text-gray-900">$25</span>
                   <span className="text-xl text-gray-600">/month</span>
                 </div>
                 
