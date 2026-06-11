@@ -301,7 +301,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     if (staffName) lines.push(`STAFF: ${staffName}${staffId ? ` (ID: ${staffId})` : ''}`);
     lines.push('='.repeat(50));
     lines.push('');
-    if (photo) { lines.push(`PHOTO: ${photo}`); lines.push(''); }
+    if (photo) { lines.push('PHOTO: [Attached to saved order record]'); lines.push(''); }
     if (notes) { lines.push('NOTES:'); lines.push(notes); lines.push(''); }
     lines.push('RECIPE / INGREDIENTS:');
     lines.push('-'.repeat(50));
