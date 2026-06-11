@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
-import { ShoppingCart, Plus, Minus, Search, X, Camera, RefreshCw, Copy, Share2 } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Search, X, Camera, RefreshCw, Copy } from 'lucide-react';
 import { Product, MarkupSettings, ProductTemplate, OrderRecord, ArrangementRecipe, POSSettings } from '../types/Product';
 import POSIntegration from './POSIntegration';
 import { useToast } from './Toast';
@@ -21,6 +21,20 @@ interface OrderItem extends Product {
   totalWholesale: number;
   totalRetail: number;
 }
+
+const dataUrlToPngBlob = (dataUrl: string): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d')!.drawImage(img, 0, 0);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/png');
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
 
 const OrderBuilder: React.FC<OrderBuilderProps> = ({
   templates,
@@ -317,37 +331,30 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     lines.push('');
     lines.push(`TOTAL: $${totalRetail.toFixed(2)}`);
     lines.push('='.repeat(50));
+    const text = lines.join('\n');
+
+    if (photo && typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
+      try {
+        const pngBlob = await dataUrlToPngBlob(photo);
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/plain': new Blob([text], { type: 'text/plain' }),
+            'image/png': pngBlob,
+          })
+        ]);
+        showToast('Recipe + photo copied! Paste text into POS notes, paste image into image fields.', 'success');
+        return;
+      } catch {
+        // fall through to text-only
+      }
+    }
+
     try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      showToast('Order text copied! Paste into your POS notes field.', 'success');
+      await navigator.clipboard.writeText(text);
+      showToast(photo ? 'Recipe copied (photo copy not supported in this browser).' : 'Order copied! Paste into your POS notes field.', 'success');
     } catch {
       showToast('Could not access clipboard. Try again or use a different browser.', 'error');
     }
-  };
-
-  const handleSharePhoto = async () => {
-    if (!photo) {
-      showToast('No photo attached to this order.', 'warning');
-      return;
-    }
-    const filename = `${orderName || 'arrangement'}.jpg`;
-    try {
-      const res = await fetch(photo);
-      const blob = await res.blob();
-      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: orderName || 'Arrangement', files: [file] });
-        return;
-      }
-    } catch {
-      // fall through to download
-    }
-    // Fallback: trigger download
-    const a = document.createElement('a');
-    a.href = photo;
-    a.download = filename;
-    a.click();
-    showToast('Photo downloaded to your device.', 'success');
   };
 
   const handleSaveOrder = () => {
@@ -916,22 +923,12 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
             </button>
             <button
               onClick={handleCopyForPOS}
-              title="Copy recipe text for POS"
+              title="Copy recipe and photo for POS"
               className="px-4 py-2 border border-emerald-500 text-emerald-700 rounded-md hover:bg-emerald-50 transition-colors flex items-center gap-2 whitespace-nowrap"
             >
               <Copy className="w-4 h-4" />
               Copy for POS
             </button>
-            {photo && (
-              <button
-                onClick={handleSharePhoto}
-                title="Share or download the arrangement photo"
-                className="px-4 py-2 border border-blue-400 text-blue-700 rounded-md hover:bg-blue-50 transition-colors flex items-center gap-2 whitespace-nowrap"
-              >
-                <Share2 className="w-4 h-4" />
-                Share Photo
-              </button>
-            )}
             <button
               onClick={clearOrder}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"

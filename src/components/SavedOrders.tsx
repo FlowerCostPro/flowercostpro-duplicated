@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy, Share2 } from 'lucide-react';
+import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
 
 interface SavedOrdersProps {
@@ -7,6 +7,20 @@ interface SavedOrdersProps {
   onDeleteOrder: (orderId: string) => void;
   onEditOrder: (order: OrderRecord) => void;
 }
+
+const dataUrlToPngBlob = (dataUrl: string): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d')!.drawImage(img, 0, 0);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/png');
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
 
 const copyOrderForPOS = async (order: OrderRecord): Promise<string> => {
   const lines: string[] = [];
@@ -32,33 +46,31 @@ const copyOrderForPOS = async (order: OrderRecord): Promise<string> => {
   lines.push('');
   lines.push(`TOTAL: $${order.totalRetail.toFixed(2)}`);
   lines.push('='.repeat(50));
+  const text = lines.join('\n');
+
+  if (order.photo && typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
+    try {
+      const pngBlob = await dataUrlToPngBlob(order.photo);
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': new Blob([text], { type: 'text/plain' }),
+          'image/png': pngBlob,
+        })
+      ]);
+      return 'Recipe + photo copied! Paste text into POS notes, paste image into image fields.';
+    } catch {
+      // fall through
+    }
+  }
+
   try {
-    await navigator.clipboard.writeText(lines.join('\n'));
-    return 'Order text copied! Paste into your POS notes field.';
+    await navigator.clipboard.writeText(text);
+    return order.photo
+      ? 'Recipe copied (photo copy not supported in this browser).'
+      : 'Order copied! Paste into your POS notes field.';
   } catch {
     return 'Could not access clipboard. Try again or use a different browser.';
   }
-};
-
-const shareOrderPhoto = async (order: OrderRecord): Promise<string> => {
-  if (!order.photo) return 'No photo attached to this order.';
-  const filename = `${order.name}.jpg`;
-  try {
-    const res = await fetch(order.photo);
-    const blob = await res.blob();
-    const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ title: order.name, files: [file] });
-      return '';
-    }
-  } catch {
-    // fall through to download
-  }
-  const a = document.createElement('a');
-  a.href = order.photo;
-  a.download = filename;
-  a.click();
-  return 'Photo downloaded to your device.';
 };
 
 const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEditOrder }) => {
@@ -75,10 +87,6 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
 
   const handleCopy = async (order: OrderRecord) => {
     showMessage(await copyOrderForPOS(order));
-  };
-
-  const handleShare = async (order: OrderRecord) => {
-    showMessage(await shareOrderPhoto(order));
   };
 
   if (orders.length === 0) {
@@ -175,15 +183,6 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                 >
                   <Copy className="w-4 h-4" />
                 </button>
-                {order.photo && (
-                  <button
-                    onClick={() => handleShare(order)}
-                    className="text-gray-400 hover:text-blue-600 transition-colors"
-                    title="Share or download photo"
-                  >
-                    <Share2 className="w-4 h-4" />
-                  </button>
-                )}
                 <button
                   onClick={() => onEditOrder(order)}
                   className="text-gray-400 hover:text-blue-600 transition-colors"
@@ -245,15 +244,6 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                     <Copy className="w-3.5 h-3.5" />
                     Copy for POS
                   </button>
-                  {selectedOrder.photo && (
-                    <button
-                      onClick={() => handleShare(selectedOrder)}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-sm font-medium transition-colors"
-                    >
-                      <Share2 className="w-3.5 h-3.5" />
-                      Share Photo
-                    </button>
-                  )}
                   <button
                     onClick={() => setSelectedOrder(null)}
                     className="text-gray-400 hover:text-gray-600"
