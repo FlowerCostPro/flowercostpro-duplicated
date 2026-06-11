@@ -56,11 +56,12 @@ const copyRecipeText = async (order: OrderRecord): Promise<string> => {
 
 const copyPhoto = async (order: OrderRecord): Promise<string> => {
   if (!order.photo) return 'No photo attached to this order.';
-  // Desktop Chrome/Edge: write image to clipboard
+  // Pass the Promise directly so ClipboardItem holds user activation while the blob resolves
   if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
     try {
-      const pngBlob = await dataUrlToPngBlob(order.photo);
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': dataUrlToPngBlob(order.photo) })
+      ]);
       return 'Photo copied! Paste it into any image field.';
     } catch {
       // fall through

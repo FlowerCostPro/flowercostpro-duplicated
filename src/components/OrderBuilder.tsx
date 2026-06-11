@@ -341,11 +341,12 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
   const handleCopyPhoto = async () => {
     if (!photo) return;
-    // Desktop Chrome/Edge: write image to clipboard
+    // Pass the Promise directly so ClipboardItem holds user activation while the blob resolves
     if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
       try {
-        const pngBlob = await dataUrlToPngBlob(photo);
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': dataUrlToPngBlob(photo) })
+        ]);
         showToast('Photo copied! Paste it into any image field.', 'success');
         return;
       } catch {
