@@ -11,6 +11,13 @@ interface WebhookOrderData {
     price: number;
     category: string;
   }>;
+  recipe: Array<{
+    name: string;
+    quantity: number;
+    type: string;
+    notes?: string;
+  }>;
+  photo?: string;
   notes?: string;
   timestamp: string;
   source: 'FlowerCost Pro';
@@ -108,6 +115,13 @@ export class WebhookService {
           category: product.type
         };
       }),
+      recipe: order.products.map((product: any) => ({
+        name: product.name,
+        quantity: product.quantity,
+        type: product.type,
+        notes: product.notes
+      })),
+      photo: order.photo,
       notes: order.notes,
       timestamp: order.date.toISOString(),
       source: 'FlowerCost Pro'

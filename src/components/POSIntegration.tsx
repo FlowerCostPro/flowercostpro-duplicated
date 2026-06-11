@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, AlertCircle, Copy, Download } from 'lucide-react';
+import { CircleCheck as CheckCircle, CircleAlert as AlertCircle, Copy, Download } from 'lucide-react';
 import { OrderRecord, POSSettings } from '../types/Product';
 import { useToast } from './Toast';
 
@@ -24,9 +24,16 @@ const POSIntegration: React.FC<POSIntegrationProps> = ({ order, posSettings, onC
       items: order.products.map((product: any) => ({
         name: product.name,
         quantity: product.quantity,
-        price: product.wholesaleCost * 2.5, // Estimated retail price
+        price: product.wholesaleCost * 2.5,
         category: product.type
       })),
+      recipe: order.products.map((product: any) => ({
+        name: product.name,
+        quantity: product.quantity,
+        type: product.type,
+        notes: product.notes
+      })),
+      photo: order.photo,
       notes: order.notes,
       timestamp: order.date.toISOString()
     };
@@ -41,30 +48,42 @@ const POSIntegration: React.FC<POSIntegrationProps> = ({ order, posSettings, onC
     lines.push(`ORDER ID: #${order.id}`);
     lines.push('='.repeat(50));
     lines.push('');
-    
+
+    if (order.photo) {
+      lines.push(`PHOTO: ${order.photo}`);
+      lines.push('');
+    }
+
     if (order.notes) {
       lines.push('CUSTOMER NOTES:');
       lines.push(order.notes);
       lines.push('');
     }
-    
-    lines.push('ITEMS:');
+
+    lines.push('RECIPE / INGREDIENTS:');
     lines.push('-'.repeat(50));
-    
+    order.products.forEach((product: any, index: number) => {
+      const label = `${product.quantity}x ${product.name} (${product.type})`;
+      lines.push(`${index + 1}. ${label}`);
+      if (product.notes) lines.push(`   Note: ${product.notes}`);
+    });
+    lines.push('');
+
+    lines.push('PRICING:');
+    lines.push('-'.repeat(50));
     order.products.forEach((product: any, index: number) => {
       const estimatedRetailPrice = product.wholesaleCost * 2.5;
       const totalRetail = estimatedRetailPrice * product.quantity;
-      
-      lines.push(`${index + 1}. ${product.name} (${product.type})`);
+      lines.push(`${index + 1}. ${product.name}`);
       lines.push(`   Qty: ${product.quantity} x $${estimatedRetailPrice.toFixed(2)} = $${totalRetail.toFixed(2)}`);
-      lines.push('');
     });
-    
+
+    lines.push('');
     lines.push('-'.repeat(50));
     lines.push(`TOTAL AMOUNT: $${order.totalRetail.toFixed(2)}`);
     lines.push(`STAFF: ${order.staffName}`);
     lines.push('='.repeat(50));
-    
+
     return lines.join('\n');
   };
 
