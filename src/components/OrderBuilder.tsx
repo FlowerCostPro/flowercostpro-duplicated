@@ -301,7 +301,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     if (staffName) lines.push(`STAFF: ${staffName}${staffId ? ` (ID: ${staffId})` : ''}`);
     lines.push('='.repeat(50));
     lines.push('');
-    if (photo) { lines.push('PHOTO: [Attached to saved order record]'); lines.push(''); }
+    if (photo) { lines.push('PHOTO: [See image - also copied to clipboard]'); lines.push(''); }
     if (notes) { lines.push('NOTES:'); lines.push(notes); lines.push(''); }
     lines.push('RECIPE / INGREDIENTS:');
     lines.push('-'.repeat(50));
@@ -317,11 +317,35 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     lines.push('');
     lines.push(`TOTAL: $${totalRetail.toFixed(2)}`);
     lines.push('='.repeat(50));
+    const text = lines.join('\n');
     try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      showToast('Order copied! Paste into your POS notes field.', 'success');
+      if (photo && typeof ClipboardItem !== 'undefined') {
+        const img = new window.Image();
+        img.src = photo;
+        await new Promise<void>(resolve => { img.onload = () => resolve(); img.onerror = () => resolve(); });
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || 800;
+        canvas.height = img.naturalHeight || 600;
+        canvas.getContext('2d')!.drawImage(img, 0, 0);
+        const pngBlob = await new Promise<Blob>(resolve => canvas.toBlob(b => resolve(b!), 'image/png'));
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/plain': new Blob([text], { type: 'text/plain' }),
+            'image/png': pngBlob,
+          })
+        ]);
+        showToast('Order + photo copied! Paste text into POS notes, paste image into image fields.', 'success');
+      } else {
+        await navigator.clipboard.writeText(text);
+        showToast('Order copied! Paste into your POS notes field.', 'success');
+      }
     } catch {
-      showToast('Could not access clipboard. Try again or use a different browser.', 'error');
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Order text copied (photo copy not supported in this browser).', 'success');
+      } catch {
+        showToast('Could not access clipboard. Try again or use a different browser.', 'error');
+      }
     }
   };
 

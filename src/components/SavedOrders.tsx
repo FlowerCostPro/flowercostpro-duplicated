@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Archive, Eye, Trash2, Calendar, DollarSign, Search, SortAsc, Edit } from 'lucide-react';
+import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
 
 interface SavedOrdersProps {
@@ -8,10 +8,73 @@ interface SavedOrdersProps {
   onEditOrder: (order: OrderRecord) => void;
 }
 
+const copyOrderForPOS = async (order: OrderRecord): Promise<{ success: boolean; message: string }> => {
+  const lines: string[] = [];
+  lines.push('='.repeat(50));
+  lines.push(`ARRANGEMENT: ${order.name}`);
+  if (order.staffName) lines.push(`STAFF: ${order.staffName}${order.staffId ? ` (ID: ${order.staffId})` : ''}`);
+  lines.push(`DATE: ${order.date.toLocaleDateString()}`);
+  lines.push('='.repeat(50));
+  lines.push('');
+  if (order.photo) { lines.push('PHOTO: [See image - also copied to clipboard]'); lines.push(''); }
+  if (order.notes) { lines.push('NOTES:'); lines.push(order.notes); lines.push(''); }
+  lines.push('RECIPE / INGREDIENTS:');
+  lines.push('-'.repeat(50));
+  order.products.forEach((p: any, i: number) => {
+    lines.push(`${i + 1}. ${p.quantity}x ${p.name} (${p.type})`);
+  });
+  lines.push('');
+  lines.push('PRICING:');
+  lines.push('-'.repeat(50));
+  order.products.forEach((p: any, i: number) => {
+    lines.push(`${i + 1}. ${p.name}: ${p.quantity} x $${p.retailPrice.toFixed(2)} = $${p.totalRetail.toFixed(2)}`);
+  });
+  lines.push('');
+  lines.push(`TOTAL: $${order.totalRetail.toFixed(2)}`);
+  lines.push('='.repeat(50));
+  const text = lines.join('\n');
+  try {
+    if (order.photo && typeof ClipboardItem !== 'undefined') {
+      const img = new window.Image();
+      img.src = order.photo;
+      await new Promise<void>(resolve => { img.onload = () => resolve(); img.onerror = () => resolve(); });
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || 800;
+      canvas.height = img.naturalHeight || 600;
+      canvas.getContext('2d')!.drawImage(img, 0, 0);
+      const pngBlob = await new Promise<Blob>(resolve => canvas.toBlob(b => resolve(b!), 'image/png'));
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': new Blob([text], { type: 'text/plain' }),
+          'image/png': pngBlob,
+        })
+      ]);
+      return { success: true, message: 'Order + photo copied! Paste text into POS notes, paste image into image fields.' };
+    } else {
+      await navigator.clipboard.writeText(text);
+      return { success: true, message: 'Order copied! Paste into your POS notes field.' };
+    }
+  } catch {
+    try {
+      await navigator.clipboard.writeText(text);
+      return { success: true, message: 'Order text copied (photo copy not supported in this browser).' };
+    } catch {
+      return { success: false, message: 'Could not access clipboard. Try again or use a different browser.' };
+    }
+  }
+};
+
 const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEditOrder }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'profit'>('date');
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
+  const [copyMessage, setCopyMessage] = useState('');
+
+  const handleCopy = async (order: OrderRecord) => {
+    const result = await copyOrderForPOS(order);
+    setCopyMessage(result.message);
+    setTimeout(() => setCopyMessage(''), 3500);
+  };
 
   if (orders.length === 0) {
     return (
@@ -54,6 +117,12 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
         </span>
       </div>
 
+      {copyMessage && (
+        <div className="mb-4 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-sm">
+          {copyMessage}
+        </div>
+      )}
+
       {/* Search and Sort */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="relative">
@@ -93,6 +162,13 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                   title="View details"
                 >
                   <Eye className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleCopy(order)}
+                  className="text-gray-400 hover:text-emerald-600 transition-colors"
+                  title="Copy for POS"
+                >
+                  <Copy className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => onEditOrder(order)}
@@ -147,12 +223,21 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-xl font-semibold text-gray-800">{selectedOrder.name}</h3>
-                <button
-                  onClick={() => setSelectedOrder(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <span className="text-2xl">×</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleCopy(selectedOrder)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md text-sm font-medium transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy for POS
+                  </button>
+                  <button
+                    onClick={() => setSelectedOrder(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <span className="text-2xl">×</span>
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-4">
