@@ -8,20 +8,6 @@ interface SavedOrdersProps {
   onEditOrder: (order: OrderRecord) => void;
 }
 
-const dataUrlToPngBlob = (dataUrl: string): Promise<Blob> =>
-  new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext('2d')!.drawImage(img, 0, 0);
-      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/png');
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-
 const copyRecipeText = async (order: OrderRecord): Promise<string> => {
   const lines: string[] = [];
   lines.push('='.repeat(50));
@@ -54,38 +40,81 @@ const copyRecipeText = async (order: OrderRecord): Promise<string> => {
   }
 };
 
-const copyPhoto = async (order: OrderRecord): Promise<string> => {
-  if (!order.photo) return 'No photo attached to this order.';
-  // Pass the Promise directly so ClipboardItem holds user activation while the blob resolves
+const copyWithPhoto = async (order: OrderRecord): Promise<string> => {
+  // Plain text
+  const lines: string[] = [];
+  lines.push(`ARRANGEMENT: ${order.name}`);
+  if (order.staffName) lines.push(`STAFF: ${order.staffName}${order.staffId ? ` (ID: ${order.staffId})` : ''}`);
+  lines.push(`DATE: ${order.date.toLocaleDateString()}`);
+  lines.push('');
+  if (order.notes) { lines.push('NOTES:'); lines.push(order.notes); lines.push(''); }
+  lines.push('RECIPE / INGREDIENTS:');
+  order.products.forEach((p: any, i: number) => {
+    lines.push(`${i + 1}. ${p.quantity}x ${p.name} (${p.type})`);
+  });
+  lines.push('');
+  lines.push('PRICING:');
+  order.products.forEach((p: any, i: number) => {
+    lines.push(`${i + 1}. ${p.name}: ${p.quantity} x $${p.retailPrice.toFixed(2)} = $${p.totalRetail.toFixed(2)}`);
+  });
+  lines.push('');
+  lines.push(`TOTAL: $${order.totalRetail.toFixed(2)}`);
+  const plainText = lines.join('\n');
+
+  // Rich HTML
+  const itemRows = order.products.map((p: any, i: number) =>
+    `<tr><td style="padding:4px 8px">${i + 1}. ${p.name} <span style="color:#666;font-size:12px">(${p.type})</span></td><td style="padding:4px 8px;text-align:center">${p.quantity}x</td><td style="padding:4px 8px;text-align:right">$${p.retailPrice.toFixed(2)}</td><td style="padding:4px 8px;text-align:right;font-weight:600">$${p.totalRetail.toFixed(2)}</td></tr>`
+  ).join('');
+  const html = `<div style="font-family:sans-serif;max-width:600px;color:#1a1a1a">
+    <h2 style="margin:0 0 6px;font-size:20px">${order.name}</h2>
+    ${order.staffName ? `<p style="margin:0 0 4px;color:#666;font-size:14px">Staff: ${order.staffName}${order.staffId ? ` (ID: ${order.staffId})` : ''}</p>` : ''}
+    <p style="margin:0 0 12px;color:#999;font-size:13px">${order.date.toLocaleDateString()}</p>
+    ${order.notes ? `<p style="margin:0 0 12px;padding:8px 12px;background:#f9f9f9;border-left:3px solid #ccc;font-style:italic">${order.notes}</p>` : ''}
+    ${order.photo ? `<img src="${order.photo}" style="max-width:100%;width:400px;border-radius:8px;margin-bottom:16px;display:block" />` : ''}
+    <table style="border-collapse:collapse;width:100%;margin-bottom:12px;font-size:14px">
+      <thead><tr style="background:#f0f4f8"><th style="padding:6px 8px;text-align:left">Item</th><th style="padding:6px 8px">Qty</th><th style="padding:6px 8px;text-align:right">Each</th><th style="padding:6px 8px;text-align:right">Total</th></tr></thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+    <p style="font-size:16px;font-weight:bold;border-top:2px solid #e0e0e0;padding-top:8px">Total: $${order.totalRetail.toFixed(2)}</p>
+  </div>`;
+
+  // Desktop: rich HTML + plain text
   if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
     try {
       await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': dataUrlToPngBlob(order.photo) })
+        new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([plainText], { type: 'text/plain' }),
+        })
       ]);
-      return 'Photo copied! Paste it into any image field.';
+      return order.photo ? 'Copied! Paste into email to see photo + details.' : 'Order details copied!';
     } catch {
       // fall through
     }
   }
-  // Mobile (iOS/Android): use native share sheet
-  const filename = `${order.name}.jpg`;
-  try {
-    const res = await fetch(order.photo);
-    const blob = await res.blob();
-    const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file] });
-      return '';
+
+  // Mobile: Web Share with image + text
+  if (order.photo && navigator.share) {
+    try {
+      const res = await fetch(order.photo);
+      const blob = await res.blob();
+      const file = new File([blob], `${order.name}.jpg`, { type: blob.type || 'image/jpeg' });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], text: plainText, title: order.name });
+        return '';
+      }
+    } catch {
+      // fall through
     }
-  } catch {
-    // fall through
   }
-  // Final fallback: download
-  const a = document.createElement('a');
-  a.href = order.photo;
-  a.download = filename;
-  a.click();
-  return 'Photo saved to your device.';
+
+  // Final fallback: text only
+  try {
+    await navigator.clipboard.writeText(plainText);
+    return 'Copied as text (photo could not be included).';
+  } catch {
+    return 'Could not copy. Try a different browser.';
+  }
 };
 
 const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEditOrder }) => {
@@ -104,8 +133,8 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
     showMessage(await copyRecipeText(order));
   };
 
-  const handleCopyPhoto = async (order: OrderRecord) => {
-    showMessage(await copyPhoto(order));
+  const handleCopyWithPhoto = async (order: OrderRecord) => {
+    showMessage(await copyWithPhoto(order));
   };
 
   if (orders.length === 0) {
@@ -198,19 +227,17 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                 <button
                   onClick={() => handleCopy(order)}
                   className="text-gray-400 hover:text-emerald-600 transition-colors"
-                  title="Copy recipe text"
+                  title="Copy recipe text for POS"
                 >
                   <Copy className="w-4 h-4" />
                 </button>
-                {order.photo && (
-                  <button
-                    onClick={() => handleCopyPhoto(order)}
-                    className="text-gray-400 hover:text-blue-600 transition-colors"
-                    title="Copy photo to clipboard"
-                  >
-                    <Image className="w-4 h-4" />
-                  </button>
-                )}
+                <button
+                  onClick={() => handleCopyWithPhoto(order)}
+                  className="text-gray-400 hover:text-blue-600 transition-colors"
+                  title={order.photo ? 'Copy details + photo for email' : 'Copy order details'}
+                >
+                  <Image className="w-4 h-4" />
+                </button>
                 <button
                   onClick={() => onEditOrder(order)}
                   className="text-gray-400 hover:text-blue-600 transition-colors"
@@ -272,15 +299,13 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                     <Copy className="w-3.5 h-3.5" />
                     Copy Recipe
                   </button>
-                  {selectedOrder.photo && (
-                    <button
-                      onClick={() => handleCopyPhoto(selectedOrder)}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-sm font-medium transition-colors"
-                    >
-                      <Image className="w-3.5 h-3.5" />
-                      Copy Photo
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleCopyWithPhoto(selectedOrder)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-sm font-medium transition-colors"
+                  >
+                    <Image className="w-3.5 h-3.5" />
+                    {selectedOrder.photo ? 'Copy + Photo' : 'Copy Details'}
+                  </button>
                   <button
                     onClick={() => setSelectedOrder(null)}
                     className="text-gray-400 hover:text-gray-600"

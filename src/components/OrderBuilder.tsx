@@ -22,20 +22,6 @@ interface OrderItem extends Product {
   totalRetail: number;
 }
 
-const dataUrlToPngBlob = (dataUrl: string): Promise<Blob> =>
-  new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext('2d')!.drawImage(img, 0, 0);
-      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/png');
-    };
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-
 const OrderBuilder: React.FC<OrderBuilderProps> = ({
   templates,
   recipes,
@@ -339,39 +325,87 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     }
   };
 
-  const handleCopyPhoto = async () => {
-    if (!photo) return;
-    // Pass the Promise directly so ClipboardItem holds user activation while the blob resolves
+  const handleCopyWithPhoto = async () => {
+    if (orderItems.length === 0) {
+      showToast('Add items to the order before copying.', 'warning');
+      return;
+    }
+
+    // Plain text fallback
+    const lines: string[] = [];
+    lines.push(`ARRANGEMENT: ${orderName || '(unnamed)'}`);
+    if (staffName) lines.push(`STAFF: ${staffName}${staffId ? ` (ID: ${staffId})` : ''}`);
+    lines.push(`DATE: ${new Date().toLocaleDateString()}`);
+    lines.push('');
+    if (notes) { lines.push('NOTES:'); lines.push(notes); lines.push(''); }
+    lines.push('RECIPE / INGREDIENTS:');
+    orderItems.forEach((item, i) => {
+      lines.push(`${i + 1}. ${item.quantity}x ${item.name} (${item.type})`);
+    });
+    lines.push('');
+    lines.push('PRICING:');
+    orderItems.forEach((item, i) => {
+      lines.push(`${i + 1}. ${item.name}: ${item.quantity} x $${item.retailPrice.toFixed(2)} = $${item.totalRetail.toFixed(2)}`);
+    });
+    lines.push('');
+    lines.push(`TOTAL: $${totalRetail.toFixed(2)}`);
+    const plainText = lines.join('\n');
+
+    // Rich HTML with embedded photo
+    const itemRows = orderItems.map((item, i) =>
+      `<tr><td style="padding:4px 8px">${i + 1}. ${item.name} <span style="color:#666;font-size:12px">(${item.type})</span></td><td style="padding:4px 8px;text-align:center">${item.quantity}x</td><td style="padding:4px 8px;text-align:right">$${item.retailPrice.toFixed(2)}</td><td style="padding:4px 8px;text-align:right;font-weight:600">$${item.totalRetail.toFixed(2)}</td></tr>`
+    ).join('');
+    const html = `<div style="font-family:sans-serif;max-width:600px;color:#1a1a1a">
+      <h2 style="margin:0 0 6px;font-size:20px">${orderName || '(unnamed)'}</h2>
+      ${staffName ? `<p style="margin:0 0 4px;color:#666;font-size:14px">Staff: ${staffName}${staffId ? ` (ID: ${staffId})` : ''}</p>` : ''}
+      <p style="margin:0 0 12px;color:#999;font-size:13px">${new Date().toLocaleDateString()}</p>
+      ${notes ? `<p style="margin:0 0 12px;padding:8px 12px;background:#f9f9f9;border-left:3px solid #ccc;font-style:italic">${notes}</p>` : ''}
+      ${photo ? `<img src="${photo}" style="max-width:100%;width:400px;border-radius:8px;margin-bottom:16px;display:block" />` : ''}
+      <table style="border-collapse:collapse;width:100%;margin-bottom:12px;font-size:14px">
+        <thead><tr style="background:#f0f4f8"><th style="padding:6px 8px;text-align:left">Item</th><th style="padding:6px 8px">Qty</th><th style="padding:6px 8px;text-align:right">Each</th><th style="padding:6px 8px;text-align:right">Total</th></tr></thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+      <p style="font-size:16px;font-weight:bold;border-top:2px solid #e0e0e0;padding-top:8px">Total: $${totalRetail.toFixed(2)}</p>
+    </div>`;
+
+    // Desktop: write rich HTML + plain text to clipboard
     if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
       try {
         await navigator.clipboard.write([
-          new ClipboardItem({ 'image/png': dataUrlToPngBlob(photo) })
+          new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([plainText], { type: 'text/plain' }),
+          })
         ]);
-        showToast('Photo copied! Paste it into any image field.', 'success');
+        showToast(photo ? 'Copied! Paste into email to see photo + details.' : 'Order details copied!', 'success');
         return;
       } catch {
         // fall through
       }
     }
-    // Mobile (iOS/Android): use native share sheet
-    const filename = `${orderName || 'arrangement'}.jpg`;
-    try {
-      const res = await fetch(photo);
-      const blob = await res.blob();
-      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file] });
-        return;
+
+    // Mobile: Web Share with image + text
+    if (photo && navigator.share) {
+      try {
+        const res = await fetch(photo);
+        const blob = await res.blob();
+        const file = new File([blob], `${orderName || 'arrangement'}.jpg`, { type: blob.type || 'image/jpeg' });
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], text: plainText, title: orderName || 'Arrangement' });
+          return;
+        }
+      } catch {
+        // fall through
       }
-    } catch {
-      // fall through
     }
-    // Final fallback: download
-    const a = document.createElement('a');
-    a.href = photo;
-    a.download = filename;
-    a.click();
-    showToast('Photo saved to your device.', 'success');
+
+    // Final fallback: text only
+    try {
+      await navigator.clipboard.writeText(plainText);
+      showToast('Copied as text (photo could not be included).', 'success');
+    } catch {
+      showToast('Could not copy. Try a different browser.', 'error');
+    }
   };
 
   const handleSaveOrder = () => {
@@ -946,16 +980,14 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
               <Copy className="w-4 h-4" />
               Copy Recipe
             </button>
-            {photo && (
-              <button
-                onClick={handleCopyPhoto}
-                title="Copy photo to clipboard"
-                className="px-4 py-2 border border-blue-400 text-blue-700 rounded-md hover:bg-blue-50 transition-colors flex items-center gap-2 whitespace-nowrap"
-              >
-                <Image className="w-4 h-4" />
-                Copy Photo
-              </button>
-            )}
+            <button
+              onClick={handleCopyWithPhoto}
+              title="Copy order details and photo for email"
+              className="px-4 py-2 border border-blue-400 text-blue-700 rounded-md hover:bg-blue-50 transition-colors flex items-center gap-2 whitespace-nowrap"
+            >
+              <Image className="w-4 h-4" />
+              {photo ? 'Copy + Photo' : 'Copy Details'}
+            </button>
             <button
               onClick={clearOrder}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
