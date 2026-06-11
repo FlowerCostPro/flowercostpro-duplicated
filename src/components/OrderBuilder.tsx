@@ -341,13 +341,36 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
   const handleCopyPhoto = async () => {
     if (!photo) return;
-    try {
-      const pngBlob = await dataUrlToPngBlob(photo);
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
-      showToast('Photo copied! Paste it into any image field.', 'success');
-    } catch {
-      showToast('Could not copy photo. Try right-clicking the image and choosing Copy Image.', 'error');
+    // Desktop Chrome/Edge: write image to clipboard
+    if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+      try {
+        const pngBlob = await dataUrlToPngBlob(photo);
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+        showToast('Photo copied! Paste it into any image field.', 'success');
+        return;
+      } catch {
+        // fall through
+      }
     }
+    // Mobile (iOS/Android): use native share sheet
+    const filename = `${orderName || 'arrangement'}.jpg`;
+    try {
+      const res = await fetch(photo);
+      const blob = await res.blob();
+      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        return;
+      }
+    } catch {
+      // fall through
+    }
+    // Final fallback: download
+    const a = document.createElement('a');
+    a.href = photo;
+    a.download = filename;
+    a.click();
+    showToast('Photo saved to your device.', 'success');
   };
 
   const handleSaveOrder = () => {
