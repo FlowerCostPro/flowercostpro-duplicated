@@ -546,6 +546,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShow
                   Start Free Trial
                   <ArrowRight className="w-5 h-5" />
                 </button>
+                <div className="text-center mt-3 space-y-1">
+                  <p className="text-sm text-gray-500">No credit card required &bull; Cancel anytime</p>
+                  <p className="text-sm text-green-700 font-medium">Submit feedback during your trial and get 30 days free</p>
+                </div>
                 
                 <p className="text-sm text-gray-500 mt-4">
                   No credit card required • Cancel anytime
