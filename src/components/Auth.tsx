@@ -1,5 +1,5 @@
-import React, { useState, useEffect, FormEvent, FC } from 'react';
-import { Eye, EyeOff, LogIn, UserPlus, Loader as Loader2, Key } from 'lucide-react';
+import React, { useState, useEffect, FormEvent } from 'react';
+import { Eye, EyeOff, LogIn, UserPlus, Loader as Loader2, Key, CreditCard } from 'lucide-react';
 import { signIn, signUp, supabase } from '../lib/supabase';
 
 interface AuthProps {
@@ -13,6 +13,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -21,6 +22,35 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
   });
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const redirectToCheckout = async (userId: string, email: string) => {
+    setCheckoutLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ userId, email }),
+        }
+      );
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch (err) {
+      console.error('Checkout redirect error:', err);
+    } finally {
+      setCheckoutLoading(false);
+    }
+    // If checkout fails, still let them into the app
+    onAuthSuccess();
+  };
 
   // Handle password reset mode
   useEffect(() => {
@@ -63,16 +93,17 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
         const { error } = await signUp(trimmedEmail, formData.password, formData.fullName);
         if (error) throw error;
 
-        // Account created successfully - try to sign in immediately for development
+        // Account created successfully - try to sign in immediately
         try {
-          const { error: signInError } = await signIn(trimmedEmail, formData.password);
+          const { data: signInData, error: signInError } = await signIn(trimmedEmail, formData.password);
           if (signInError) {
-            // If immediate sign-in fails, show message to check email
             setMessage('Account created! Please check your email for confirmation, then sign in.');
             setIsSignUp(false);
             resetForm();
+          } else if (signInData?.user) {
+            // Redirect new users to Stripe checkout (14-day trial, no CC required)
+            await redirectToCheckout(signInData.user.id, trimmedEmail);
           } else {
-            // Successfully signed in immediately
             onAuthSuccess();
           }
         } catch (signInError) {
@@ -258,18 +289,21 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || checkoutLoading}
             className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? (
+            {loading || checkoutLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <>
                 {isSignUp ? <UserPlus className="w-5 h-5" /> : <LogIn className="w-5 h-5" />}
-                {isPasswordReset ? 'Update Password' : isSignUp ? 'Create Account' : 'Sign In'}
+                {isPasswordReset ? 'Update Password' : isSignUp ? 'Create Account & Start Free Trial' : 'Sign In'}
               </>
             )}
           </button>
+          {checkoutLoading && (
+            <p className="text-center text-sm text-gray-500">Setting up your free trial...</p>
+          )}
         </form>
 
         {!isSignUp && !isPasswordReset && (
@@ -312,10 +346,11 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
         )}
 
         {isSignUp && !isPasswordReset && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-xs text-blue-700">
-              By creating an account, you agree to our Terms of Service and Privacy Policy.
-              Your data is encrypted and secure.
+          <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+            <p className="text-xs text-green-800 font-medium mb-1">14-day free trial included</p>
+            <p className="text-xs text-green-700">
+              No credit card required to start. $25/month after your trial. Cancel anytime.
+              Submitted feedback? You get 30 days free automatically.
             </p>
           </div>
         )}

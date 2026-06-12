@@ -16,6 +16,7 @@ import StaffTrainingMode from './components/StaffTrainingMode';
 import POSConfiguration from './components/POSConfiguration';
 import POSOrderView from './components/POSOrderView';
 import LowStockAlert from './components/LowStockAlert';
+import SubscriptionBanner from './components/SubscriptionBanner';
 import { supabase, getCurrentUser } from './lib/supabase';
 import { useSupabaseData } from './hooks/useSupabaseData';
 import { Product, ProductTemplate, OrderRecord } from './types/Product';
@@ -141,6 +142,8 @@ function App() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [currentOrderProducts, setCurrentOrderProducts] = useState<Product[]>([]);
   const [editingOrder, setEditingOrder] = useState<OrderRecord | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
 
   const {
     profile,
@@ -171,11 +174,22 @@ function App() {
         if (currentUser) {
           setUser(currentUser);
           setCurrentView('dashboard');
+          await fetchSubscription(currentUser.id);
         }
       } catch (error) {
         console.error('Error checking user:', error);
       }
     };
+
+    // Handle Stripe checkout return
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'success') {
+      showToast('Subscription set up! Your trial is now active.', 'success');
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('checkout') === 'cancelled') {
+      showToast('Checkout cancelled. You can subscribe anytime from your dashboard.', 'info');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
 
     checkUser();
 
@@ -184,9 +198,12 @@ function App() {
         if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
           setCurrentView('dashboard');
+          await fetchSubscription(session.user.id);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setCurrentView('landing');
+          setSubscriptionStatus(null);
+          setTrialEndsAt(null);
         } else if (event === 'PASSWORD_RECOVERY') {
           setIsPasswordReset(true);
           setCurrentView('auth');
@@ -196,6 +213,22 @@ function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchSubscription = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('subscription_status, trial_ends_at')
+        .eq('id', userId)
+        .single();
+      if (data) {
+        setSubscriptionStatus(data.subscription_status ?? 'trialing');
+        setTrialEndsAt(data.trial_ends_at ?? null);
+      }
+    } catch (err) {
+      console.error('Error fetching subscription:', err);
+    }
+  };
 
   const handleStartDemo = () => {
     console.log('App: handleStartDemo called');
@@ -468,6 +501,14 @@ function App() {
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
+      {user?.id && (
+        <SubscriptionBanner
+          userId={user.id}
+          email={user.email ?? ''}
+          subscriptionStatus={subscriptionStatus}
+          trialEndsAt={trialEndsAt}
+        />
+      )}
       <Dashboard
         userRole={userRole}
         userName={userName}

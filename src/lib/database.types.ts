@@ -306,6 +306,11 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           store_name: string | null
           updated_at: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string | null
+          trial_ends_at: string | null
+          subscribed_at: string | null
         }
         Insert: {
           created_at?: string
@@ -315,6 +320,11 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           store_name?: string | null
           updated_at?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          trial_ends_at?: string | null
+          subscribed_at?: string | null
         }
         Update: {
           created_at?: string
@@ -324,6 +334,11 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           store_name?: string | null
           updated_at?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          trial_ends_at?: string | null
+          subscribed_at?: string | null
         }
         Relationships: [
           {
