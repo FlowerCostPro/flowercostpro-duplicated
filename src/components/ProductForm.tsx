@@ -110,7 +110,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ onAddProduct, existingTemplat
               type="number"
               step="0.01"
               min="0"
-              value={formData.wholesaleCost || (existingProduct?.wholesaleCost || '')}
+              value={formData.wholesaleCost}
               onChange={(e) => setFormData({ ...formData, wholesaleCost: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder={existingProduct ? existingProduct.wholesaleCost.toFixed(2) : "0.00"}
@@ -176,7 +176,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ onAddProduct, existingTemplat
             <input
               type="number"
               min="0"
-              value={formData.lowStockThreshold || (existingProduct?.lowStockThreshold || '')}
+              value={formData.lowStockThreshold}
               onChange={(e) => setFormData({ ...formData, lowStockThreshold: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder={existingProduct?.lowStockThreshold?.toString() || "5"}
