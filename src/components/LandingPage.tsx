@@ -1,5 +1,5 @@
 import React, { useState, FormEvent } from 'react';
-import { DollarSign, Users, TrendingUp, CircleCheck as CheckCircle, ArrowRight, Play, Star, Shield, Clock, Target, ChartBar as BarChart3, Smartphone } from 'lucide-react';
+import { DollarSign, Users, TrendingUp, CircleCheck as CheckCircle, ArrowRight, Play, Star, Shield, Clock, Target, ChartBar as BarChart3, Smartphone, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from './Toast';
 
@@ -410,8 +410,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShow
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Quick Setup</h3>
               <p className="text-gray-600 text-sm">
-                Start protecting profits in under 10 minutes. Import your 
+                Start protecting profits in under 10 minutes. Import your
                 products and begin training staff immediately.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-xl p-6 shadow-lg">
+              <div className="bg-teal-100 p-3 rounded-full w-fit mb-4">
+                <RefreshCw className="w-6 h-6 text-teal-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Real-Time Inventory Tracking</h3>
+              <p className="text-gray-600 text-sm">
+                Inventory auto-updates as arrangements are built. Always know exactly what's on hand without manual counts.
               </p>
             </div>
           </div>
