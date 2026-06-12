@@ -492,10 +492,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShow
             <div className="bg-white rounded-2xl shadow-2xl border-2 border-green-500 relative">
               <div className="p-8 text-center">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">FlowerCostPro</h3>
-                <div className="mb-6">
+                <div className="mb-2">
                   <span className="text-5xl font-bold text-gray-900">$25</span>
                   <span className="text-xl text-gray-600">/month</span>
                 </div>
+                <p className="text-sm text-green-700 font-medium mb-6">
+                  At $25 a month FlowerCostPro pays for itself with the profit from a single arrangement.
+                </p>
                 
                 <ul className="space-y-3 mb-8 text-left">
                   <li className="flex items-center gap-3">
