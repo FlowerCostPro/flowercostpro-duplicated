@@ -57,23 +57,25 @@ const Dashboard: React.FC<DashboardProps> = ({
   const menuItems = [
     // All roles
     { id: 'overview', label: 'Overview', icon: LayoutDashboard, roles: ['owner', 'manager', 'staff'] },
-    
-    // Setup flow - Owner & Manager only (in logical order)
+
+    // Setup flow - Owner only
     { id: 'settings', label: 'Settings', icon: Settings, roles: ['owner'] },
-    { id: 'products', label: 'Product Library', icon: Package, roles: ['owner', 'manager'] },
     { id: 'recipes', label: 'Arrangement Recipes', icon: BookOpen, roles: ['owner', 'manager'] },
-    { id: 'low-stock', label: 'Low Stock', icon: AlertTriangle, roles: ['owner', 'manager'] },
-    
+
     // Daily operations - All roles
     { id: 'create-order', label: 'Create Order', icon: ShoppingCart, roles: ['owner', 'manager', 'staff'] },
     { id: 'orders', label: 'Order History', icon: ShoppingCart, roles: ['owner', 'manager'] },
-    
+
+    // Training - Owner only
+    { id: 'staff-training', label: 'Staff Training', icon: Users, roles: ['owner'] },
+
+    // Inventory - Owner & Manager only (between training and analytics)
+    { id: 'products', label: 'Inventory Tracking', icon: Package, roles: ['owner', 'manager'] },
+    { id: 'low-stock', label: 'Low Stock Alert', icon: AlertTriangle, roles: ['owner', 'manager'] },
+
     // Analysis - Owner & Manager only
     { id: 'analytics', label: 'Profit Analytics', icon: TrendingUp, roles: ['owner', 'manager'] },
     { id: 'insights', label: 'Business Insights', icon: TrendingUp, roles: ['owner', 'manager'] },
-    
-    // Training - Owner only
-    { id: 'staff-training', label: 'Staff Training', icon: Users, roles: ['owner'] },
   ];
 
   const visibleMenuItems = menuItems.filter(item => item.roles.includes(userRole));

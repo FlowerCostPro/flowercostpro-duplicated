@@ -400,6 +400,10 @@ function App() {
               onUpdateTemplate={updateProductTemplate}
               onDeleteTemplate={deleteProductTemplate}
             />
+            <LowStockAlert
+              templates={productTemplates}
+              onUpdateTemplate={updateProductTemplate}
+            />
           </div>
         );
       case 'recipes':
