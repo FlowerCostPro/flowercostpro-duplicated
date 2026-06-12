@@ -46,6 +46,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   const [recipeSearchTerm, setRecipeSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showRecipeSuggestions, setShowRecipeSuggestions] = useState(false);
+  const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({});
   const [savedOrderForPOS, setSavedOrderForPOS] = useState<OrderRecord | null>(null);
   const [showPOSIntegration, setShowPOSIntegration] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
@@ -815,10 +816,19 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                       <input
                         type="number"
                         min="1"
-                        value={item.quantity}
+                        value={quantityInputs[item.id] ?? item.quantity.toString()}
                         onChange={e => {
+                          setQuantityInputs(prev => ({ ...prev, [item.id]: e.target.value }));
                           const val = parseInt(e.target.value);
                           if (!isNaN(val) && val > 0) updateItemQuantity(item.id, val);
+                        }}
+                        onBlur={e => {
+                          const val = parseInt(e.target.value);
+                          if (isNaN(val) || val <= 0) {
+                            setQuantityInputs(prev => ({ ...prev, [item.id]: item.quantity.toString() }));
+                          } else {
+                            setQuantityInputs(prev => { const next = { ...prev }; delete next[item.id]; return next; });
+                          }
                         }}
                         className="w-14 text-center font-medium border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
