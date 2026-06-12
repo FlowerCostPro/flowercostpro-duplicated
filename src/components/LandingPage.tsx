@@ -388,8 +388,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShow
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Universal POS Integration</h3>
               <p className="text-gray-600 text-sm">
-                Works with any point-of-sale system. Simple copy/paste 
-                integration - no technical setup required.
+                Copy to any POS — one click copies order, photo, designer name, recipient, recipe and date. Photo record on every order.
               </p>
             </div>
 
