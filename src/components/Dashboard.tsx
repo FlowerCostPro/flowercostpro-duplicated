@@ -70,7 +70,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     { id: 'staff-training', label: 'Staff Training', icon: Users, roles: ['owner'] },
 
     // Inventory - Owner & Manager only (between training and analytics)
-    { id: 'products', label: 'Inventory Tracking', icon: Package, roles: ['owner', 'manager'] },
+    { id: 'products', label: 'Product Library', icon: Package, roles: ['owner', 'manager'] },
     { id: 'low-stock', label: 'Low Stock Alert', icon: AlertTriangle, roles: ['owner', 'manager'] },
 
     // Analysis - Owner & Manager only
