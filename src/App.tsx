@@ -13,6 +13,7 @@ import ArrangementRecipes from './components/ArrangementRecipes';
 import ProfitAnalytics from './components/ProfitAnalytics';
 import BusinessInsights from './components/BusinessInsights';
 import StaffTrainingMode from './components/StaffTrainingMode';
+import TrialExpiredOverlay from './components/TrialExpiredOverlay';
 import POSConfiguration from './components/POSConfiguration';
 import POSOrderView from './components/POSOrderView';
 import LowStockAlert from './components/LowStockAlert';
@@ -132,6 +133,34 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
   );
 }
 
+// Simulation overrides for testing trial states via ?simulate=X URL param
+// Values: expired | 1day | 3days | 7days | active | past_due | canceled
+function getSimulatedSubscriptionState(): { status: string | null; trialEndsAt: string | null } | null {
+  const params = new URLSearchParams(window.location.search);
+  const sim = params.get('simulate');
+  if (!sim) return null;
+  const now = Date.now();
+  const day = 86400000;
+  switch (sim) {
+    case 'expired':
+      return { status: 'trialing', trialEndsAt: new Date(now - day).toISOString() };
+    case '1day':
+      return { status: 'trialing', trialEndsAt: new Date(now + day * 0.5).toISOString() };
+    case '3days':
+      return { status: 'trialing', trialEndsAt: new Date(now + day * 3).toISOString() };
+    case '7days':
+      return { status: 'trialing', trialEndsAt: new Date(now + day * 7).toISOString() };
+    case 'active':
+      return { status: 'active', trialEndsAt: null };
+    case 'past_due':
+      return { status: 'past_due', trialEndsAt: null };
+    case 'canceled':
+      return { status: 'canceled', trialEndsAt: null };
+    default:
+      return null;
+  }
+}
+
 function App() {
   const { showToast } = useToast();
   const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'dashboard'>('landing');
@@ -144,6 +173,10 @@ function App() {
   const [editingOrder, setEditingOrder] = useState<OrderRecord | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+
+  const simulation = getSimulatedSubscriptionState();
+  const effectiveStatus = simulation ? simulation.status : subscriptionStatus;
+  const effectiveTrialEndsAt = simulation ? simulation.trialEndsAt : trialEndsAt;
 
   const {
     profile,
@@ -505,10 +538,26 @@ function App() {
         <SubscriptionBanner
           userId={user.id}
           email={user.email ?? ''}
-          subscriptionStatus={subscriptionStatus}
-          trialEndsAt={trialEndsAt}
+          subscriptionStatus={effectiveStatus}
+          trialEndsAt={effectiveTrialEndsAt}
         />
       )}
+      {/* Paywall overlay — blocks access when trial has expired */}
+      {user?.id && (() => {
+        if (effectiveStatus === 'active') return null;
+        const trialEnd = effectiveTrialEndsAt ? new Date(effectiveTrialEndsAt) : null;
+        const expired = trialEnd ? trialEnd < new Date() : false;
+        if (!expired && effectiveStatus !== 'canceled') return null;
+        return (
+          <TrialExpiredOverlay
+            userId={user.id}
+            email={user.email ?? ''}
+            isCanceled={effectiveStatus === 'canceled'}
+            onLogout={handleLogout}
+            isSimulated={!!simulation}
+          />
+        );
+      })()}
       <Dashboard
         userRole={userRole}
         userName={userName}
