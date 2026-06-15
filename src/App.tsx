@@ -402,7 +402,7 @@ function App() {
     );
   }
 
-  if (loading) {
+  if (loading && !simulation) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
