@@ -47,48 +47,38 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose, userId, userEmai
     setIsSubmitting(true);
     try {
       const trimmedEmail = email.trim().toLowerCase();
-      const { error } = await supabase
-        .from('beta_feedback')
-        .insert({
-          email: trimmedEmail,
-          feedback: feedback.trim(),
-          timestamp: new Date().toISOString()
-        });
 
-      if (error) throw error;
-
-      // Extend trial to 30 days from signup for authenticated users
       if (userId) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('created_at, trial_ends_at')
-          .eq('id', userId)
-          .maybeSingle();
+        // Authenticated: single server-side call that inserts feedback AND
+        // extends the trial atomically via SECURITY DEFINER RPC (bypasses RLS)
+        const { data: newTrialEnd, error } = await supabase.rpc(
+          'submit_feedback_and_extend_trial',
+          { p_email: trimmedEmail, p_feedback: feedback.trim() }
+        );
 
-        if (profile) {
-          const thirtyDaysFromSignup = new Date(
-            new Date(profile.created_at).getTime() + 30 * 24 * 60 * 60 * 1000
-          );
-          const currentTrialEnd = profile.trial_ends_at ? new Date(profile.trial_ends_at) : new Date(0);
+        if (error) throw error;
 
-          if (thirtyDaysFromSignup > currentTrialEnd) {
-            await supabase
-              .from('profiles')
-              .update({
-                trial_ends_at: thirtyDaysFromSignup.toISOString(),
-                subscription_status: 'trialing'
-              })
-              .eq('id', userId);
-
-            onTrialExtended?.(thirtyDaysFromSignup.toISOString());
-            showToast('Thank you! Your trial has been extended to 30 days.', 'success');
-            onClose();
-            return;
-          }
+        if (newTrialEnd) {
+          onTrialExtended?.(newTrialEnd);
+          showToast('Thank you! Your trial has been extended to 30 days.', 'success');
+        } else {
+          showToast('Thank you for your feedback! We really appreciate it.', 'success');
         }
+      } else {
+        // Unauthenticated (landing page): direct insert only, no trial to extend
+        const { error } = await supabase
+          .from('beta_feedback')
+          .insert({
+            email: trimmedEmail,
+            feedback: feedback.trim(),
+            timestamp: new Date().toISOString()
+          });
+
+        if (error) throw error;
+
+        showToast('Thank you for your feedback! We really appreciate it.', 'success');
       }
 
-      showToast('Thank you for your feedback! We really appreciate it.', 'success');
       onClose();
     } catch (error) {
       console.error('Feedback submission error:', error);
