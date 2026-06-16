@@ -349,18 +349,24 @@ export const useSupabaseData = (userId: string | null) => {
     setLoading(true);
     setError(null);
 
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Data loading timed out')), 10000)
+    );
+
     try {
-      await Promise.all([
-        loadProfile(),
-        loadProductTemplates(),
-        loadMarkupSettings(),
-        loadSavedOrders(),
-        loadArrangementRecipes(),
-        loadPosSettings()
+      await Promise.race([
+        Promise.all([
+          loadProfile(),
+          loadProductTemplates(),
+          loadMarkupSettings(),
+          loadSavedOrders(),
+          loadArrangementRecipes(),
+          loadPosSettings()
+        ]),
+        timeout
       ]);
     } catch (error: any) {
       console.error('Error loading data:', error);
-      setError(error.message);
     } finally {
       setLoading(false);
     }

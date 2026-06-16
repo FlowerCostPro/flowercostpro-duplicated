@@ -212,12 +212,15 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname);
     }
 
+    // Keep this callback synchronous — never call supabase.from() inside
+    // onAuthStateChange. The SDK has not fully committed the session when the
+    // callback fires; awaiting a DB query here deadlocks the Supabase client
+    // and hangs every subsequent query (including loadAllData).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session?.user) {
           setUser(session.user);
           setCurrentView('dashboard');
-          await fetchSubscription(session.user.id);
         } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
           setUser(null);
           setCurrentView('landing');
@@ -233,21 +236,23 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchSubscription = async (userId: string) => {
-    try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('subscription_status, trial_ends_at')
-        .eq('id', userId)
-        .single();
-      if (data) {
-        setSubscriptionStatus(data.subscription_status ?? 'trialing');
-        setTrialEndsAt(data.trial_ends_at ?? null);
-      }
-    } catch (err) {
-      console.error('Error fetching subscription:', err);
-    }
-  };
+  // Fetch subscription data in a separate effect, safely outside onAuthStateChange.
+  useEffect(() => {
+    if (!user?.id) return;
+    const userId = user.id;
+    supabase
+      .from('profiles')
+      .select('subscription_status, trial_ends_at')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setSubscriptionStatus(data.subscription_status ?? 'trialing');
+          setTrialEndsAt(data.trial_ends_at ?? null);
+        }
+      })
+      .catch((err) => console.error('Error fetching subscription:', err));
+  }, [user?.id]);
 
   const handleStartTrial = () => {
     setAuthMode('signup');
