@@ -26,11 +26,14 @@ import { useToast } from './components/Toast';
 
 interface FeedbackModalProps {
   onClose: () => void;
+  userId?: string | null;
+  userEmail?: string | null;
+  onTrialExtended?: (newTrialEndsAt: string) => void;
 }
 
-const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
+const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose, userId, userEmail, onTrialExtended }) => {
   const { showToast } = useToast();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(userEmail ?? '');
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,15 +46,47 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
 
     setIsSubmitting(true);
     try {
+      const trimmedEmail = email.trim().toLowerCase();
       const { error } = await supabase
         .from('beta_feedback')
         .insert({
-          email: email.trim().toLowerCase(),
+          email: trimmedEmail,
           feedback: feedback.trim(),
           timestamp: new Date().toISOString()
         });
 
       if (error) throw error;
+
+      // Extend trial to 30 days from signup for authenticated users
+      if (userId) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('created_at, trial_ends_at')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profile) {
+          const thirtyDaysFromSignup = new Date(
+            new Date(profile.created_at).getTime() + 30 * 24 * 60 * 60 * 1000
+          );
+          const currentTrialEnd = profile.trial_ends_at ? new Date(profile.trial_ends_at) : new Date(0);
+
+          if (thirtyDaysFromSignup > currentTrialEnd) {
+            await supabase
+              .from('profiles')
+              .update({
+                trial_ends_at: thirtyDaysFromSignup.toISOString(),
+                subscription_status: 'trialing'
+              })
+              .eq('id', userId);
+
+            onTrialExtended?.(thirtyDaysFromSignup.toISOString());
+            showToast('Thank you! Your trial has been extended to 30 days.', 'success');
+            onClose();
+            return;
+          }
+        }
+      }
 
       showToast('Thank you for your feedback! We really appreciate it.', 'success');
       onClose();
@@ -76,9 +111,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
               placeholder="your@email.com"
               required
+              disabled={!!userEmail}
             />
           </div>
           <div>
@@ -94,6 +130,11 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
               required
             />
           </div>
+          {userId && (
+            <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+              Submit feedback and get 30 days free — your trial will be extended automatically.
+            </p>
+          )}
           <div className="flex gap-3">
             <button
               type="submit"
@@ -569,7 +610,12 @@ function App() {
         </DashboardContent>
       </Dashboard>
       {showFeedbackModal && (
-        <FeedbackModal onClose={() => setShowFeedbackModal(false)} />
+        <FeedbackModal
+          onClose={() => setShowFeedbackModal(false)}
+          userId={user?.id}
+          userEmail={user?.email}
+          onTrialExtended={(newDate) => setTrialEndsAt(newDate)}
+        />
       )}
     </ErrorBoundary>
   );
