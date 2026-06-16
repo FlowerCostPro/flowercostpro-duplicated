@@ -4,21 +4,17 @@ import { supabase } from '../lib/supabase';
 import { useToast } from './Toast';
 
 interface LandingPageProps {
-  onStartDemo: () => void;
+  onStartTrial: () => void;
   onSignIn: () => void;
   onShowFeedback: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShowFeedback }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onShowFeedback }) => {
   const { showToast } = useToast();
   const [email, setEmail] = useState('');
 
   const handleGetStarted = () => {
-    console.log('LandingPage: handleGetStarted called');
-    console.log('LandingPage: About to call onStartDemo');
-    console.log('LandingPage: onStartDemo function:', typeof onStartDemo);
-    onStartDemo();
-    console.log('LandingPage: onStartDemo called successfully');
+    onStartTrial();
   };
 
   const handleEmailSignup = async (e: FormEvent) => {
@@ -88,7 +84,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShow
                 onClick={handleGetStarted}
                 className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium"
               >
-                Try Free Demo
+                Start Free Trial
               </button>
             </div>
           </div>
@@ -119,7 +115,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShow
                   className="bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg flex items-center justify-center gap-2"
                 >
                   <Play className="w-5 h-5" />
-                  Try Free Demo
+                  Start Free Trial
                 </button>
                 <form onSubmit={handleEmailSignup} className="flex gap-2">
                   <input
@@ -593,7 +589,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartDemo, onSignIn, onShow
               className="bg-white text-green-600 px-8 py-4 rounded-lg hover:bg-gray-100 transition-colors font-semibold text-lg flex items-center gap-2"
             >
               <Play className="w-5 h-5" />
-              Try Free Demo
+              Start Free Trial
             </button>
             <form onSubmit={handleEmailSignup} className="flex gap-2" name="email-signup-cta">
               <input

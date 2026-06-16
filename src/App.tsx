@@ -168,6 +168,7 @@ function App() {
   const [userRole, setUserRole] = useState<UserRole>('owner');
   const [activeSection, setActiveSection] = useState('overview');
   const [isPasswordReset, setIsPasswordReset] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [currentOrderProducts, setCurrentOrderProducts] = useState<Product[]>([]);
   const [editingOrder, setEditingOrder] = useState<OrderRecord | null>(null);
@@ -263,17 +264,14 @@ function App() {
     }
   };
 
-  const handleStartDemo = () => {
-    console.log('App: handleStartDemo called');
-    console.log('App: Setting currentView to dashboard and user to demo');
-    setUser({ id: null, email: 'demo@flowercostpro.com' });
-    setCurrentView('dashboard');
-    setUserRole('owner');
-    setActiveSection('overview');
-    console.log('App: Demo mode activated');
+  const handleStartTrial = () => {
+    setAuthMode('signup');
+    setCurrentView('auth');
+    setIsPasswordReset(false);
   };
 
   const handleSignIn = () => {
+    setAuthMode('signin');
     setCurrentView('auth');
     setIsPasswordReset(false);
   };
@@ -378,8 +376,8 @@ function App() {
   if (currentView === 'landing') {
     return (
       <ErrorBoundary FallbackComponent={ErrorFallback}>
-        <LandingPage 
-          onStartDemo={handleStartDemo}
+        <LandingPage
+          onStartTrial={handleStartTrial}
           onSignIn={handleSignIn}
           onShowFeedback={handleShowFeedback}
         />
@@ -393,10 +391,11 @@ function App() {
   if (currentView === 'auth') {
     return (
       <ErrorBoundary FallbackComponent={ErrorFallback}>
-        <Auth 
+        <Auth
           onAuthSuccess={handleAuthSuccess}
           isPasswordReset={isPasswordReset}
           onBackToLanding={handleBackToLanding}
+          initialMode={authMode}
         />
       </ErrorBoundary>
     );

@@ -6,10 +6,11 @@ interface AuthProps {
   onAuthSuccess: () => void;
   isPasswordReset?: boolean;
   onBackToLanding?: () => void;
+  initialMode?: 'signin' | 'signup';
 }
 
-const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onBackToLanding }) => {
-  const [isSignUp, setIsSignUp] = useState(false);
+const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onBackToLanding, initialMode = 'signin' }) => {
+  const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
