@@ -41,13 +41,12 @@ export const useSupabaseData = (userId: string | null) => {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      setProfile(data);
+      if (data) setProfile(data);
     } catch (error: any) {
       console.error('Error loading profile:', error);
-      setError(error.message);
     }
   };
 

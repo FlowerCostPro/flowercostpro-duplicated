@@ -18,7 +18,7 @@ import POSConfiguration from './components/POSConfiguration';
 import POSOrderView from './components/POSOrderView';
 import LowStockAlert from './components/LowStockAlert';
 import SubscriptionBanner from './components/SubscriptionBanner';
-import { supabase, getCurrentUser } from './lib/supabase';
+import { supabase } from './lib/supabase';
 import { useSupabaseData } from './hooks/useSupabaseData';
 import { Product, ProductTemplate, OrderRecord } from './types/Product';
 import { UserRole } from './types/shared';
@@ -202,19 +202,6 @@ function App() {
   } = useSupabaseData(user?.id || null);
 
   useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const { user: currentUser } = await getCurrentUser();
-        if (currentUser) {
-          setUser(currentUser);
-          setCurrentView('dashboard');
-          await fetchSubscription(currentUser.id);
-        }
-      } catch (error) {
-        console.error('Error checking user:', error);
-      }
-    };
-
     // Handle Stripe checkout return
     const params = new URLSearchParams(window.location.search);
     if (params.get('checkout') === 'success') {
@@ -225,15 +212,13 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname);
     }
 
-    checkUser();
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session?.user) {
           setUser(session.user);
           setCurrentView('dashboard');
           await fetchSubscription(session.user.id);
-        } else if (event === 'SIGNED_OUT') {
+        } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
           setUser(null);
           setCurrentView('landing');
           setSubscriptionStatus(null);
