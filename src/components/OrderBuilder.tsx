@@ -514,11 +514,30 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         )}
       </div>
 
+      {/* Budget input — owner/manager */}
+      {userRole !== 'staff' && (
+        <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6">
+          <label className="text-sm font-medium text-blue-800 whitespace-nowrap">
+            Customer Price ($)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={customerBudget}
+            onChange={(e) => setCustomerBudget(e.target.value)}
+            className="w-36 px-3 py-1.5 border border-blue-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="e.g., 75.00"
+          />
+          <span className="text-xs text-blue-600">Enter what the customer is paying to track budget as you build</span>
+        </div>
+      )}
+
       {/* Staff Mode: Budget and Mode Selection */}
       {userRole === 'staff' && (
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-6">
           <h3 className="text-lg font-medium text-purple-800 mb-4">Customer Requirements</h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-purple-700 mb-1">
@@ -533,11 +552,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                 className="w-full px-3 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="e.g., 75.00"
               />
-              <p className="text-xs text-purple-600 mt-1">
-                This will be used for budget tracking in Staff Training Mode
-              </p>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-purple-700 mb-1">
                 Arrangement Type
@@ -901,6 +917,50 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
               )}
             </div>
           </div>
+          {/* Budget Tracker */}
+          {customerBudget && parseFloat(customerBudget) > 0 && (() => {
+            const budget = parseFloat(customerBudget);
+            const remaining = budget - totalRetail;
+            const pct = Math.min((totalRetail / budget) * 100, 100);
+            const isOver = remaining < 0;
+            const isClose = !isOver && remaining / budget < 0.1;
+            const barColor = isOver ? 'bg-red-500' : isClose ? 'bg-amber-400' : 'bg-emerald-500';
+            const textColor = isOver ? 'text-red-700' : isClose ? 'text-amber-700' : 'text-emerald-700';
+            const bgColor = isOver ? 'bg-red-50 border-red-200' : isClose ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200';
+
+            return (
+              <div className={`mt-4 rounded-lg border p-4 ${bgColor}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-gray-700">Budget Tracker</span>
+                  <span className={`text-sm font-bold ${textColor}`}>
+                    {isOver
+                      ? `Over budget by $${Math.abs(remaining).toFixed(2)}`
+                      : `$${remaining.toFixed(2)} remaining`}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3 overflow-hidden">
+                  <div
+                    className={`h-2.5 rounded-full transition-all duration-300 ${barColor}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="grid grid-cols-3 text-xs text-gray-600 gap-2">
+                  <div>
+                    <div className="text-gray-500">Customer Price</div>
+                    <div className="font-semibold text-gray-800">${budget.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">Used so far</div>
+                    <div className="font-semibold text-gray-800">${totalRetail.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500">{isOver ? 'Over by' : 'Remaining'}</div>
+                    <div className={`font-bold ${textColor}`}>${Math.abs(remaining).toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Order Details */}
