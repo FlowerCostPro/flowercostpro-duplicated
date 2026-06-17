@@ -744,58 +744,6 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         )}
       </div>
 
-      {/* Photo Capture — always visible */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Arrangement Photo (Optional)
-        </label>
-        {photo ? (
-          <div>
-            <img
-              src={photo}
-              alt="Arrangement"
-              className="w-full max-h-56 object-contain rounded-lg border border-gray-200 bg-gray-50 mb-3"
-            />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => photoInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Retake
-              </button>
-              <button
-                type="button"
-                onClick={() => setPhoto('')}
-                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-md text-sm font-medium transition-colors"
-              >
-                <X className="w-4 h-4" />
-                Remove
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => photoInputRef.current?.click()}
-            className="w-full flex flex-col items-center justify-center gap-2 px-4 py-6 border-2 border-dashed border-emerald-300 rounded-lg text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50 transition-colors cursor-pointer"
-          >
-            <Camera className="w-8 h-8 text-emerald-500" />
-            <span className="font-medium">Take Photo</span>
-            <span className="text-xs text-gray-500">Opens camera on phone/tablet — or choose from gallery on desktop</span>
-          </button>
-        )}
-        <input
-          ref={photoInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handlePhotoUpload}
-          className="hidden"
-        />
-      </div>
-
       {/* Order Items */}
       {orderItems.length > 0 && (
         <>
@@ -965,6 +913,58 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
         {/* Order Details */}
         <div className="space-y-4">
+          {/* Photo Capture */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Arrangement Photo (Optional)
+            </label>
+            {photo ? (
+              <div>
+                <img
+                  src={photo}
+                  alt="Arrangement"
+                  className="w-full max-h-56 object-contain rounded-lg border border-gray-200 bg-gray-50 mb-3"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Retake
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPhoto('')}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-md text-sm font-medium transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="w-full flex flex-col items-center justify-center gap-2 px-4 py-6 border-2 border-dashed border-emerald-300 rounded-lg text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50 transition-colors cursor-pointer"
+              >
+                <Camera className="w-8 h-8 text-emerald-500" />
+                <span className="font-medium">Take Photo</span>
+                <span className="text-xs text-gray-500">Opens camera on phone/tablet — or choose from gallery on desktop</span>
+              </button>
+            )}
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
+          </div>
+
           {/* Staff Information - Always visible but more prominent for staff */}
           <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg border-2 ${
             userRole === 'staff' 
