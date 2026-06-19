@@ -8,110 +8,46 @@ interface SavedOrdersProps {
   onEditOrder: (order: OrderRecord) => void;
 }
 
+const buildPOSText = (order: OrderRecord): string =>
+  [
+    order.name,
+    order.staffName ? `Designer: ${order.staffName}` : '',
+    order.date.toLocaleDateString(),
+  ].filter(Boolean).join('\n');
+
 const copyRecipeText = async (order: OrderRecord): Promise<string> => {
-  const lines: string[] = [];
-  lines.push('='.repeat(50));
-  lines.push(`ARRANGEMENT: ${order.name}`);
-  if (order.staffName) lines.push(`STAFF: ${order.staffName}${order.staffId ? ` (ID: ${order.staffId})` : ''}`);
-  lines.push(`DATE: ${order.date.toLocaleDateString()}`);
-  lines.push('='.repeat(50));
-  lines.push('');
-  if (order.photo) { lines.push('PHOTO: [See attached image]'); lines.push(''); }
-  if (order.notes) { lines.push('NOTES:'); lines.push(order.notes); lines.push(''); }
-  lines.push('RECIPE / INGREDIENTS:');
-  lines.push('-'.repeat(50));
-  order.products.forEach((p: any, i: number) => {
-    lines.push(`${i + 1}. ${p.quantity}x ${p.name} (${p.type})`);
-  });
-  lines.push('');
-  lines.push('PRICING:');
-  lines.push('-'.repeat(50));
-  order.products.forEach((p: any, i: number) => {
-    lines.push(`${i + 1}. ${p.name}: ${p.quantity} x $${p.retailPrice.toFixed(2)} = $${p.totalRetail.toFixed(2)}`);
-  });
-  lines.push('');
-  lines.push(`TOTAL: $${order.totalRetail.toFixed(2)}`);
-  lines.push('='.repeat(50));
   try {
-    await navigator.clipboard.writeText(lines.join('\n'));
-    return 'Recipe text copied! Paste into your POS notes field.';
+    await navigator.clipboard.writeText(buildPOSText(order));
+    return 'Copied! Paste into your POS notes field.';
   } catch {
     return 'Could not access clipboard. Try again or use a different browser.';
   }
 };
 
 const copyWithPhoto = async (order: OrderRecord): Promise<string> => {
-  // Plain text
-  const lines: string[] = [];
-  lines.push(`ARRANGEMENT: ${order.name}`);
-  if (order.staffName) lines.push(`STAFF: ${order.staffName}${order.staffId ? ` (ID: ${order.staffId})` : ''}`);
-  lines.push(`DATE: ${order.date.toLocaleDateString()}`);
-  lines.push('');
-  if (order.notes) { lines.push('NOTES:'); lines.push(order.notes); lines.push(''); }
-  lines.push('RECIPE / INGREDIENTS:');
-  order.products.forEach((p: any, i: number) => {
-    lines.push(`${i + 1}. ${p.quantity}x ${p.name} (${p.type})`);
-  });
-  lines.push('');
-  lines.push('PRICING:');
-  order.products.forEach((p: any, i: number) => {
-    lines.push(`${i + 1}. ${p.name}: ${p.quantity} x $${p.retailPrice.toFixed(2)} = $${p.totalRetail.toFixed(2)}`);
-  });
-  lines.push('');
-  lines.push(`TOTAL: $${order.totalRetail.toFixed(2)}`);
-  const plainText = lines.join('\n');
+  const text = buildPOSText(order);
 
-  // Rich HTML
-  const itemRows = order.products.map((p: any, i: number) =>
-    `<tr><td style="padding:4px 8px">${i + 1}. ${p.name} <span style="color:#666;font-size:12px">(${p.type})</span></td><td style="padding:4px 8px;text-align:center">${p.quantity}x</td><td style="padding:4px 8px;text-align:right">$${p.retailPrice.toFixed(2)}</td><td style="padding:4px 8px;text-align:right;font-weight:600">$${p.totalRetail.toFixed(2)}</td></tr>`
-  ).join('');
-  const html = `<div style="font-family:sans-serif;max-width:600px;color:#1a1a1a">
-    <h2 style="margin:0 0 6px;font-size:20px">${order.name}</h2>
-    ${order.staffName ? `<p style="margin:0 0 4px;color:#666;font-size:14px">Staff: ${order.staffName}${order.staffId ? ` (ID: ${order.staffId})` : ''}</p>` : ''}
-    <p style="margin:0 0 12px;color:#999;font-size:13px">${order.date.toLocaleDateString()}</p>
-    ${order.notes ? `<p style="margin:0 0 12px;padding:8px 12px;background:#f9f9f9;border-left:3px solid #ccc;font-style:italic">${order.notes}</p>` : ''}
-    ${order.photo ? `<img src="${order.photo}" style="max-width:100%;width:400px;border-radius:8px;margin-bottom:16px;display:block" />` : ''}
-    <table style="border-collapse:collapse;width:100%;margin-bottom:12px;font-size:14px">
-      <thead><tr style="background:#f0f4f8"><th style="padding:6px 8px;text-align:left">Item</th><th style="padding:6px 8px">Qty</th><th style="padding:6px 8px;text-align:right">Each</th><th style="padding:6px 8px;text-align:right">Total</th></tr></thead>
-      <tbody>${itemRows}</tbody>
-    </table>
-    <p style="font-size:16px;font-weight:bold;border-top:2px solid #e0e0e0;padding-top:8px">Total: $${order.totalRetail.toFixed(2)}</p>
-  </div>`;
-
-  // Desktop: rich HTML + plain text
-  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/html': new Blob([html], { type: 'text/html' }),
-          'text/plain': new Blob([plainText], { type: 'text/plain' }),
-        })
-      ]);
-      return order.photo ? 'Copied! Paste into your POS notes to include photo + details.' : 'Order details copied!';
-    } catch {
-      // fall through
-    }
-  }
-
-  // Mobile: Web Share with image + text
+  // Mobile: share photo as a file alongside the text
   if (order.photo && navigator.share) {
     try {
       const res = await fetch(order.photo);
       const blob = await res.blob();
       const file = new File([blob], `${order.name}.jpg`, { type: blob.type || 'image/jpeg' });
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], text: plainText, title: order.name });
+        await navigator.share({ files: [file], text, title: order.name });
         return '';
       }
     } catch {
-      // fall through
+      // fall through to clipboard
     }
   }
 
-  // Final fallback: text only
+  // Clipboard fallback: plain text only (avoids pasting raw HTML/base64 into POS)
   try {
-    await navigator.clipboard.writeText(plainText);
-    return 'Copied as text (photo could not be included).';
+    await navigator.clipboard.writeText(text);
+    return order.photo
+      ? 'Text copied. On this device, save the photo separately from the order view.'
+      : 'Order details copied!';
   } catch {
     return 'Could not copy. Try a different browser.';
   }
