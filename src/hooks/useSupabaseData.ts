@@ -658,33 +658,40 @@ export const useSupabaseData = (userId: string | null) => {
 
   // Helper function to update inventory after order
   const updateInventoryAfterOrder = async (order: OrderRecord) => {
-    const updatedTemplates: ProductTemplate[] = [];
+    const changedTemplates: ProductTemplate[] = [];
 
-    setProductTemplates((prevTemplates: ProductTemplate[]) =>
-      prevTemplates.map((template: ProductTemplate) => {
-        // Find matching products in the order
+    setProductTemplates((prevTemplates: ProductTemplate[]) => {
+      const nextTemplates = prevTemplates.map((template: ProductTemplate) => {
         const matchingProduct = order.products.find((product: any) =>
           product.name === template.name && product.type === template.type
         );
 
         if (matchingProduct && template.inventoryCount !== undefined) {
           const newCount = Math.max(0, template.inventoryCount - matchingProduct.quantity);
-          const updatedTemplate = {
-            ...template,
-            inventoryCount: newCount
-          };
-          updatedTemplates.push(updatedTemplate);
-          return updatedTemplate;
+          const updated = { ...template, inventoryCount: newCount };
+          changedTemplates.push(updated);
+          return updated;
         }
 
         return template;
-      })
-    );
+      });
+
+      // Persist to localStorage inside the functional update to avoid stale closure
+      if (!userId) {
+        try {
+          localStorage.setItem('demo_product_templates', JSON.stringify(nextTemplates));
+        } catch (err) {
+          console.error('Error updating inventory in localStorage:', err);
+        }
+      }
+
+      return nextTemplates;
+    });
 
     // Update database for authenticated users
-    if (userId && updatedTemplates.length > 0) {
+    if (userId && changedTemplates.length > 0) {
       try {
-        for (const template of updatedTemplates) {
+        for (const template of changedTemplates) {
           const { error } = await supabase
             .from('product_templates')
             .update({ inventory_count: template.inventoryCount })
@@ -695,34 +702,8 @@ export const useSupabaseData = (userId: string | null) => {
             console.error('Error updating inventory in database:', error);
           }
         }
-        console.log('Inventory updated in database for', updatedTemplates.length, 'products');
       } catch (error) {
         console.error('Error updating inventory in database:', error);
-      }
-    }
-
-    // Update localStorage for demo mode
-    if (!userId) {
-      try {
-        const updatedTemplates = productTemplates.map((template: ProductTemplate) => {
-          const matchingProduct = order.products.find((product: any) =>
-            product.name === template.name && product.type === template.type
-          );
-
-          if (matchingProduct && template.inventoryCount !== undefined) {
-            const newCount = Math.max(0, template.inventoryCount - matchingProduct.quantity);
-            return {
-              ...template,
-              inventoryCount: newCount
-            };
-          }
-
-          return template;
-        });
-
-        localStorage.setItem('demo_product_templates', JSON.stringify(updatedTemplates));
-      } catch (error) {
-        console.error('Error updating inventory in localStorage:', error);
       }
     }
   };

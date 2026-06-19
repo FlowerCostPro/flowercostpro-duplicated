@@ -34,12 +34,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ onAddProduct, existingTemplat
     }
 
     const quantityToAdd = parseInt(formData.quantity);
-    let newInventoryCount: number;
+    let newInventoryCount: number | undefined;
 
     if (existingProduct) {
-      newInventoryCount = (existingProduct.inventoryCount || 0) + quantityToAdd;
+      newInventoryCount = (existingProduct.inventoryCount ?? 0) + quantityToAdd;
     } else {
-      newInventoryCount = formData.inventoryCount !== '' ? parseInt(formData.inventoryCount) : 0;
+      newInventoryCount = formData.inventoryCount !== '' ? parseInt(formData.inventoryCount) : undefined;
     }
 
     onAddProduct({
