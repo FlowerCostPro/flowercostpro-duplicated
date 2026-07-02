@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
+import AdminDashboard from './components/AdminDashboard';
 import LandingPage from './components/LandingPage';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
@@ -205,6 +206,8 @@ function App() {
   const [editingOrder, setEditingOrder] = useState<OrderRecord | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const isAdminPath = window.location.pathname === '/admin';
 
   const simulation = getSimulatedSubscriptionState();
   const effectiveStatus = simulation ? simulation.status : subscriptionStatus;
@@ -283,6 +286,18 @@ function App() {
         }
       })
       .catch((err) => console.error('Error fetching subscription:', err));
+  }, [user?.id]);
+
+  // Check admin flag — only used when the /admin path is requested
+  useEffect(() => {
+    if (!user?.id || !isAdminPath) return;
+    supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => setIsAdmin(data?.is_admin === true))
+      .catch(() => setIsAdmin(false));
   }, [user?.id]);
 
   const handleStartTrial = () => {
@@ -420,6 +435,24 @@ function App() {
         />
       </ErrorBoundary>
     );
+  }
+
+  // Admin route — gate on is_admin flag checked server-side by the edge function.
+  // Non-admins who try /admin are silently redirected to the normal dashboard.
+  if (isAdminPath && currentView === 'dashboard') {
+    if (!isAdmin) {
+      // Still waiting for the isAdmin check, or user is not admin: fall through to normal dashboard
+      if (!user?.id) {
+        window.history.replaceState({}, '', '/');
+        return null;
+      }
+    } else {
+      return (
+        <ErrorBoundary FallbackComponent={ErrorFallback}>
+          <AdminDashboard user={user} />
+        </ErrorBoundary>
+      );
+    }
   }
 
   if (loading && !simulation) {
