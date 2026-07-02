@@ -276,28 +276,17 @@ function App() {
     const userId = user.id;
     supabase
       .from('profiles')
-      .select('subscription_status, trial_ends_at')
+      .select('subscription_status, trial_ends_at, is_admin')
       .eq('id', userId)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
           setSubscriptionStatus(data.subscription_status ?? 'trialing');
           setTrialEndsAt(data.trial_ends_at ?? null);
+          setIsAdmin(data.is_admin === true);
         }
       })
       .catch((err) => console.error('Error fetching subscription:', err));
-  }, [user?.id]);
-
-  // Check admin flag — only used when the /admin path is requested
-  useEffect(() => {
-    if (!user?.id || !isAdminPath) return;
-    supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .maybeSingle()
-      .then(({ data }) => setIsAdmin(data?.is_admin === true))
-      .catch(() => setIsAdmin(false));
   }, [user?.id]);
 
   const handleStartTrial = () => {
@@ -587,7 +576,7 @@ function App() {
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      {user?.id && (
+      {user?.id && !isAdmin && (
         <SubscriptionBanner
           userId={user.id}
           email={user.email ?? ''}
@@ -595,8 +584,8 @@ function App() {
           trialEndsAt={effectiveTrialEndsAt}
         />
       )}
-      {/* Paywall overlay — blocks access when trial has expired */}
-      {user?.id && (() => {
+      {/* Paywall overlay — blocks access when trial has expired. Never shown to admin. */}
+      {user?.id && !isAdmin && (() => {
         if (effectiveStatus === 'active') return null;
         const trialEnd = effectiveTrialEndsAt ? new Date(effectiveTrialEndsAt) : null;
         const expired = trialEnd ? trialEnd < new Date() : false;
