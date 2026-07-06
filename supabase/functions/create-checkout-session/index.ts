@@ -20,7 +20,7 @@ async function stripeRequest(path: string, method: string, body?: Record<string,
 
   const encodedBody = body
     ? Object.entries(flattenForStripe(body))
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+        .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
         .join("&")
     : undefined;
 
