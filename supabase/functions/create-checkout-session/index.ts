@@ -125,7 +125,26 @@ Deno.serve(async (req: Request) => {
 
     let customerId: string;
     if (profile?.stripe_customer_id) {
-      customerId = profile.stripe_customer_id;
+      // Verify the stored customer ID is valid in the current Stripe environment.
+      // A test-mode ID will 404 when using a live key (and vice versa).
+      const existing = await fetch(
+        `https://api.stripe.com/v1/customers/${profile.stripe_customer_id}`,
+        { headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` } }
+      );
+      if (existing.ok) {
+        customerId = profile.stripe_customer_id;
+      } else {
+        // Stale / wrong-mode ID — create a fresh customer and overwrite it
+        const customer = await stripeRequest("/customers", "POST", {
+          email,
+          metadata: { supabase_user_id: userId },
+        });
+        customerId = customer.id;
+        await supabase
+          .from("profiles")
+          .update({ stripe_customer_id: customerId })
+          .eq("id", userId);
+      }
     } else {
       const customer = await stripeRequest("/customers", "POST", {
         email,
