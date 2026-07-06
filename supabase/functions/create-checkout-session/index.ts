@@ -54,15 +54,15 @@ function flattenForStripe(obj: Record<string, unknown>, prefix = ""): Record<str
 }
 
 async function getOrCreatePrice(): Promise<string> {
-  // Search for existing price
-  const products = await stripeRequest(
-    "/products/search?query=name:'FlowerCostPro'&limit=1",
-    "GET"
-  );
+  // List products and find FlowerCostPro
+  const products = await stripeRequest("/products?limit=100&active=true", "GET");
 
   let productId: string;
-  if (products.data?.length > 0) {
-    productId = products.data[0].id;
+  const existing_product = products.data?.find(
+    (p: { name: string }) => p.name === "FlowerCostPro"
+  );
+  if (existing_product) {
+    productId = existing_product.id;
   } else {
     const product = await stripeRequest("/products", "POST", {
       name: "FlowerCostPro",
@@ -77,17 +77,17 @@ async function getOrCreatePrice(): Promise<string> {
     `/prices?product=${productId}&active=true&type=recurring&limit=10`,
     "GET"
   );
-  const existing = prices.data?.find(
+  const existingPrice = prices.data?.find(
     (p: { unit_amount: number; currency: string; recurring?: { interval: string } }) =>
       p.unit_amount === 2500 && p.currency === "usd" && p.recurring?.interval === "month"
   );
-  if (existing) return existing.id;
+  if (existingPrice) return existingPrice.id;
 
   const price = await stripeRequest("/prices", "POST", {
     product: productId,
-    unit_amount: 2500,
+    unit_amount: "2500",
     currency: "usd",
-    recurring: { interval: "month" },
+    "recurring[interval]": "month",
   });
   return price.id;
 }
