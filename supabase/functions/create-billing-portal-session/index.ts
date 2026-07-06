@@ -38,9 +38,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { userId } = await req.json();
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "userId is required" }), {
+    const { userId, email } = await req.json();
+    if (!userId || !email) {
+      return new Response(JSON.stringify({ error: "userId and email are required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -53,16 +53,43 @@ Deno.serve(async (req: Request) => {
       .eq("id", userId)
       .single();
 
-    if (!profile?.stripe_customer_id) {
-      return new Response(JSON.stringify({ error: "No Stripe customer found for this user" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    let customerId: string;
+
+    if (profile?.stripe_customer_id) {
+      // Verify the stored customer ID is valid in the current Stripe environment.
+      // A test-mode ID will 404 when using a live key (and vice versa).
+      const existing = await fetch(
+        `https://api.stripe.com/v1/customers/${profile.stripe_customer_id}`,
+        { headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` } }
+      );
+      if (existing.ok) {
+        customerId = profile.stripe_customer_id;
+      } else {
+        const customer = await stripeRequest("/customers", "POST", {
+          email,
+          "metadata[supabase_user_id]": userId,
+        });
+        customerId = customer.id;
+        await supabase
+          .from("profiles")
+          .update({ stripe_customer_id: customerId })
+          .eq("id", userId);
+      }
+    } else {
+      const customer = await stripeRequest("/customers", "POST", {
+        email,
+        "metadata[supabase_user_id]": userId,
       });
+      customerId = customer.id;
+      await supabase
+        .from("profiles")
+        .update({ stripe_customer_id: customerId })
+        .eq("id", userId);
     }
 
     const origin = req.headers.get("origin") ?? "https://flowercostpro.com";
     const portalSession = await stripeRequest("/billing_portal/sessions", "POST", {
-      customer: profile.stripe_customer_id,
+      customer: customerId,
       return_url: origin,
     });
 

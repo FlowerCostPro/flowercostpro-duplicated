@@ -67,7 +67,7 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
             'Content-Type': 'application/json',
             Authorization: `Bearer ${session?.access_token}`,
           },
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({ userId, email }),
         }
       );
       const data = await res.json();
