@@ -177,7 +177,7 @@ Deno.serve(async (req: Request) => {
       customer: customerId,
       mode: "subscription",
       currency: "usd",
-      payment_method_collection: "if_required",
+      payment_method_collection: "always",
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
         trial_period_days: trialDays,
