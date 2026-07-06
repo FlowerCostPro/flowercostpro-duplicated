@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, CreditCard, X, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle } from 'lucide-react';
+import { Clock, X, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface SubscriptionBannerProps {
@@ -16,9 +16,7 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
   trialEndsAt,
 }) => {
   const [loading, setLoading] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   if (dismissed) return null;
   if (subscriptionStatus === 'active') return null;
@@ -53,36 +51,6 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
       console.error('Checkout error:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAddPaymentMethod = async () => {
-    setPortalLoading(true);
-    setError(null);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ userId, email, setupOnly: true }),
-        }
-      );
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setError(data.error ?? 'Could not open payment page. Please try again.');
-      }
-    } catch (err) {
-      setError('Connection error. Please try again.');
-      console.error('Add payment method error:', err);
-    } finally {
-      setPortalLoading(false);
     }
   };
 
@@ -197,21 +165,9 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
           Free trial active — <strong>{daysLeft} days</strong> remaining. $25/month after trial ends.
         </span>
       </div>
-      <div className="flex items-center gap-3">
-        {error && (
-          <span className="text-xs text-red-200 font-medium">{error}</span>
-        )}
-        <button
-          onClick={handleAddPaymentMethod}
-          disabled={portalLoading}
-          className="text-green-200 hover:text-white text-sm underline underline-offset-2 disabled:opacity-60"
-        >
-          {portalLoading ? 'Loading...' : 'Add payment method'}
-        </button>
-        <button onClick={() => setDismissed(true)} className="text-green-300 hover:text-white">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+      <button onClick={() => setDismissed(true)} className="text-green-300 hover:text-white">
+        <X className="w-4 h-4" />
+      </button>
     </div>
   );
 };

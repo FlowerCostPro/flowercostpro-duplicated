@@ -1,5 +1,5 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { Eye, EyeOff, LogIn, UserPlus, Loader as Loader2, Key, CreditCard } from 'lucide-react';
+import { Eye, EyeOff, LogIn, UserPlus, Loader as Loader2, Key } from 'lucide-react';
 import { signIn, signUp, supabase } from '../lib/supabase';
 
 interface AuthProps {
@@ -14,7 +14,6 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,35 +22,6 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
   });
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  const redirectToCheckout = async (userId: string, email: string) => {
-    setCheckoutLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ userId, email }),
-        }
-      );
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-    } catch (err) {
-      console.error('Checkout redirect error:', err);
-    } finally {
-      setCheckoutLoading(false);
-    }
-    // If checkout fails, still let them into the app
-    onAuthSuccess();
-  };
 
   // Handle password reset mode
   useEffect(() => {
@@ -102,8 +72,8 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
             setIsSignUp(false);
             resetForm();
           } else if (signInData?.user) {
-            // Redirect new users to Stripe checkout (14-day trial, no CC required)
-            await redirectToCheckout(signInData.user.id, trimmedEmail);
+            // Trial starts automatically — go straight to the dashboard
+            onAuthSuccess();
           } else {
             onAuthSuccess();
           }
@@ -290,10 +260,10 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
 
           <button
             type="submit"
-            disabled={loading || checkoutLoading}
+            disabled={loading}
             className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading || checkoutLoading ? (
+            {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <>
@@ -302,8 +272,8 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
               </>
             )}
           </button>
-          {checkoutLoading && (
-            <p className="text-center text-sm text-gray-500">Setting up your free trial...</p>
+          {loading && isSignUp && (
+            <p className="text-center text-sm text-gray-500">Creating your account...</p>
           )}
         </form>
 

@@ -163,14 +163,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Determine trial length: 30 days for feedback submitters, 14 for everyone else
-    const { data: feedbackRow } = await supabase
-      .from("beta_feedback")
-      .select("id")
-      .eq("email", email.toLowerCase())
-      .maybeSingle();
-    const trialDays = feedbackRow ? 30 : 14;
-
     const priceId = await getOrCreatePrice();
 
     const session = await stripeRequest("/checkout/sessions", "POST", {
@@ -180,23 +172,13 @@ Deno.serve(async (req: Request) => {
       payment_method_collection: "always",
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
-        trial_period_days: trialDays,
-        metadata: { supabase_user_id: userId, trial_days: trialDays },
+        metadata: { supabase_user_id: userId },
       },
       success_url: `${origin}?checkout=success`,
       cancel_url: `${origin}?checkout=cancelled`,
     });
 
-    // Record trial start in profiles
-    await supabase
-      .from("profiles")
-      .update({
-        subscription_status: "trialing",
-        trial_ends_at: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString(),
-      })
-      .eq("id", userId);
-
-    return new Response(JSON.stringify({ url: session.url, trialDays }), {
+    return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
