@@ -18,6 +18,7 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
   const [loading, setLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (dismissed) return null;
   if (subscriptionStatus === 'active') return null;
@@ -57,27 +58,29 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
 
   const handleAddPaymentMethod = async () => {
     setPortalLoading(true);
+    setError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-billing-portal-session`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${session?.access_token}`,
           },
-          body: JSON.stringify({ userId, email }),
+          body: JSON.stringify({ userId, email, setupOnly: true }),
         }
       );
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
       } else {
-        console.error('No billing portal URL returned:', data);
+        setError(data.error ?? 'Could not open payment page. Please try again.');
       }
     } catch (err) {
-      console.error('Billing portal error:', err);
+      setError('Connection error. Please try again.');
+      console.error('Add payment method error:', err);
     } finally {
       setPortalLoading(false);
     }
@@ -195,6 +198,9 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
         </span>
       </div>
       <div className="flex items-center gap-3">
+        {error && (
+          <span className="text-xs text-red-200 font-medium">{error}</span>
+        )}
         <button
           onClick={handleAddPaymentMethod}
           disabled={portalLoading}

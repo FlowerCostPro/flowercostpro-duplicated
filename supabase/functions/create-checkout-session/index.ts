@@ -98,7 +98,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { userId, email } = await req.json();
+    const { userId, email, setupOnly } = await req.json();
     if (!userId || !email) {
       return new Response(JSON.stringify({ error: "userId and email are required" }), {
         status: 400,
@@ -108,15 +108,7 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Determine trial length: 30 days for feedback submitters, 14 for everyone else
-    const { data: feedbackRow } = await supabase
-      .from("beta_feedback")
-      .select("id")
-      .eq("email", email.toLowerCase())
-      .maybeSingle();
-    const trialDays = feedbackRow ? 30 : 14;
-
-    // Get or create Stripe customer
+    // Get or create Stripe customer, validating against current Stripe environment
     const { data: profile } = await supabase
       .from("profiles")
       .select("stripe_customer_id")
@@ -125,8 +117,6 @@ Deno.serve(async (req: Request) => {
 
     let customerId: string;
     if (profile?.stripe_customer_id) {
-      // Verify the stored customer ID is valid in the current Stripe environment.
-      // A test-mode ID will 404 when using a live key (and vice versa).
       const existing = await fetch(
         `https://api.stripe.com/v1/customers/${profile.stripe_customer_id}`,
         { headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` } }
@@ -134,7 +124,6 @@ Deno.serve(async (req: Request) => {
       if (existing.ok) {
         customerId = profile.stripe_customer_id;
       } else {
-        // Stale / wrong-mode ID — create a fresh customer and overwrite it
         const customer = await stripeRequest("/customers", "POST", {
           email,
           metadata: { supabase_user_id: userId },
@@ -157,8 +146,31 @@ Deno.serve(async (req: Request) => {
         .eq("id", userId);
     }
 
-    const priceId = await getOrCreatePrice();
     const origin = req.headers.get("origin") ?? "https://flowercostpro.com";
+
+    // Setup-only mode: collect a payment method without creating a subscription.
+    // The saved card will be charged automatically when the trial ends.
+    if (setupOnly) {
+      const session = await stripeRequest("/checkout/sessions", "POST", {
+        customer: customerId,
+        mode: "setup",
+        success_url: `${origin}?payment_method=saved`,
+        cancel_url: `${origin}`,
+      });
+      return new Response(JSON.stringify({ url: session.url }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Determine trial length: 30 days for feedback submitters, 14 for everyone else
+    const { data: feedbackRow } = await supabase
+      .from("beta_feedback")
+      .select("id")
+      .eq("email", email.toLowerCase())
+      .maybeSingle();
+    const trialDays = feedbackRow ? 30 : 14;
+
+    const priceId = await getOrCreatePrice();
 
     const session = await stripeRequest("/checkout/sessions", "POST", {
       customer: customerId,
