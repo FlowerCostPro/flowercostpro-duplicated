@@ -16,6 +16,7 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
   trialEndsAt,
 }) => {
   const [loading, setLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
@@ -51,6 +52,34 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
       console.error('Checkout error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddPaymentMethod = async () => {
+    setPortalLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-billing-portal-session`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ userId }),
+        }
+      );
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        console.error('No billing portal URL returned:', data);
+      }
+    } catch (err) {
+      console.error('Billing portal error:', err);
+    } finally {
+      setPortalLoading(false);
     }
   };
 
@@ -167,11 +196,11 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
       </div>
       <div className="flex items-center gap-3">
         <button
-          onClick={handleSubscribe}
-          disabled={loading}
+          onClick={handleAddPaymentMethod}
+          disabled={portalLoading}
           className="text-green-200 hover:text-white text-sm underline underline-offset-2 disabled:opacity-60"
         >
-          {loading ? 'Loading...' : 'Add payment method'}
+          {portalLoading ? 'Loading...' : 'Add payment method'}
         </button>
         <button onClick={() => setDismissed(true)} className="text-green-300 hover:text-white">
           <X className="w-4 h-4" />
