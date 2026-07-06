@@ -154,6 +154,7 @@ Deno.serve(async (req: Request) => {
       const session = await stripeRequest("/checkout/sessions", "POST", {
         customer: customerId,
         mode: "setup",
+        currency: "usd",
         success_url: `${origin}?payment_method=saved`,
         cancel_url: `${origin}`,
       });
@@ -175,6 +176,7 @@ Deno.serve(async (req: Request) => {
     const session = await stripeRequest("/checkout/sessions", "POST", {
       customer: customerId,
       mode: "subscription",
+      currency: "usd",
       payment_method_collection: "if_required",
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
