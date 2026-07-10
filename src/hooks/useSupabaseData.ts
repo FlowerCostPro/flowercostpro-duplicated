@@ -658,44 +658,41 @@ export const useSupabaseData = (userId: string | null) => {
 
   // Helper function to update inventory after order
   const updateInventoryAfterOrder = async (order: OrderRecord) => {
-    const changedTemplates: ProductTemplate[] = [];
+    // Compute changes from the current state synchronously (no functional updater timing issue)
+    const changes: Array<{ id: string; newCount: number }> = [];
 
-    setProductTemplates((prevTemplates: ProductTemplate[]) => {
-      const nextTemplates = prevTemplates.map((template: ProductTemplate) => {
-        const matchingProduct = order.products.find((product: any) =>
-          product.name === template.name && product.type === template.type
-        );
+    const updatedTemplates = productTemplates.map((template: ProductTemplate) => {
+      const matchingProduct = order.products.find((product: any) =>
+        product.name === template.name && product.type === template.type
+      );
 
-        if (matchingProduct && template.inventoryCount !== undefined) {
-          const newCount = Math.max(0, template.inventoryCount - matchingProduct.quantity);
-          const updated = { ...template, inventoryCount: newCount };
-          changedTemplates.push(updated);
-          return updated;
-        }
-
-        return template;
-      });
-
-      // Persist to localStorage inside the functional update to avoid stale closure
-      if (!userId) {
-        try {
-          localStorage.setItem('demo_product_templates', JSON.stringify(nextTemplates));
-        } catch (err) {
-          console.error('Error updating inventory in localStorage:', err);
-        }
+      if (matchingProduct && template.inventoryCount !== undefined) {
+        const newCount = Math.max(0, template.inventoryCount - matchingProduct.quantity);
+        changes.push({ id: template.id, newCount });
+        return { ...template, inventoryCount: newCount };
       }
 
-      return nextTemplates;
+      return template;
     });
 
-    // Update database for authenticated users
-    if (userId && changedTemplates.length > 0) {
+    setProductTemplates(updatedTemplates);
+
+    if (!userId) {
       try {
-        for (const template of changedTemplates) {
+        localStorage.setItem('demo_product_templates', JSON.stringify(updatedTemplates));
+      } catch (err) {
+        console.error('Error updating inventory in localStorage:', err);
+      }
+    }
+
+    // Update database for authenticated users
+    if (userId && changes.length > 0) {
+      try {
+        for (const { id, newCount } of changes) {
           const { error } = await supabase
             .from('product_templates')
-            .update({ inventory_count: template.inventoryCount })
-            .eq('id', template.id)
+            .update({ inventory_count: newCount })
+            .eq('id', id)
             .eq('user_id', userId);
 
           if (error) {

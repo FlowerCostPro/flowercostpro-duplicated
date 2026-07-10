@@ -50,7 +50,7 @@ const POSIntegration: React.FC<POSIntegrationProps> = ({ order, posSettings, onC
     lines.push('');
 
     if (order.photo) {
-      lines.push(`PHOTO: ${order.photo}`);
+      lines.push('PHOTO: [Attached — view in order history]');
       lines.push('');
     }
 
