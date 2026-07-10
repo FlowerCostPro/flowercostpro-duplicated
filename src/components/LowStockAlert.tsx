@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Package, RefreshCw, X } from 'lucide-react';
 import { ProductTemplate } from '../types/Product';
+import { useToast } from './Toast';
 
 const getTypeColor = (type: string) => {
   switch (type) {
@@ -16,9 +17,9 @@ interface ItemCardProps {
   isOutOfStock: boolean;
   restockValue: string;
   onRestockChange: (id: string, value: string) => void;
-  onRestock: (template: ProductTemplate) => void;
-  onSetStock: (template: ProductTemplate) => void;
-  onDismiss: (template: ProductTemplate) => void;
+  onRestock: (template: ProductTemplate) => Promise<void>;
+  onSetStock: (template: ProductTemplate) => Promise<void>;
+  onDismiss: (template: ProductTemplate) => Promise<void>;
 }
 
 const ItemCard: React.FC<ItemCardProps> = ({
@@ -97,10 +98,11 @@ const ItemCard: React.FC<ItemCardProps> = ({
 
 interface LowStockAlertProps {
   templates: ProductTemplate[];
-  onUpdateTemplate: (templateId: string, updates: Partial<ProductTemplate>) => void;
+  onUpdateTemplate: (templateId: string, updates: Partial<ProductTemplate>) => Promise<void>;
 }
 
 const LowStockAlert: React.FC<LowStockAlertProps> = ({ templates, onUpdateTemplate }) => {
+  const { showToast } = useToast();
   const [restockAmounts, setRestockAmounts] = useState<Record<string, string>>({});
 
   const lowStockItems = templates.filter(t => {
@@ -117,28 +119,38 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({ templates, onUpdateTempla
     setRestockAmounts(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleRestock = (template: ProductTemplate) => {
+  const handleRestock = async (template: ProductTemplate) => {
     const amount = parseInt(restockAmounts[template.id] ?? '');
     if (isNaN(amount) || amount <= 0) return;
     const newCount = (template.inventoryCount ?? 0) + amount;
-    onUpdateTemplate(template.id, { inventoryCount: newCount });
     setRestockAmounts(prev => { const n = { ...prev }; delete n[template.id]; return n; });
+    try {
+      await onUpdateTemplate(template.id, { inventoryCount: newCount });
+    } catch {
+      showToast('Failed to update inventory. Please try again.', 'error');
+    }
   };
 
-  const handleSetStock = (template: ProductTemplate) => {
+  const handleSetStock = async (template: ProductTemplate) => {
     const amount = parseInt(restockAmounts[template.id] ?? '');
     if (isNaN(amount) || amount < 0) return;
-    onUpdateTemplate(template.id, { inventoryCount: amount });
     setRestockAmounts(prev => { const n = { ...prev }; delete n[template.id]; return n; });
+    try {
+      await onUpdateTemplate(template.id, { inventoryCount: amount });
+    } catch {
+      showToast('Failed to update inventory. Please try again.', 'error');
+    }
   };
 
-  const handleDismiss = (template: ProductTemplate) => {
-    if (template.inventoryCount === 0) {
-      // Out-of-stock item: clear inventory tracking entirely so it leaves the list
-      onUpdateTemplate(template.id, { inventoryCount: undefined, lowStockThreshold: undefined });
-    } else {
-      // Low-stock item: clear the threshold so it no longer triggers an alert
-      onUpdateTemplate(template.id, { lowStockThreshold: undefined });
+  const handleDismiss = async (template: ProductTemplate) => {
+    try {
+      if (template.inventoryCount === 0) {
+        await onUpdateTemplate(template.id, { inventoryCount: undefined, lowStockThreshold: undefined });
+      } else {
+        await onUpdateTemplate(template.id, { lowStockThreshold: undefined });
+      }
+    } catch {
+      showToast('Failed to dismiss alert. Please try again.', 'error');
     }
   };
 

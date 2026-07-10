@@ -466,8 +466,10 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       if (posSettings.isConfigured && posSettings.storeName) {
         setSavedOrderForPOS(order);
         setShowPOSIntegration(true);
+        // clearOrder is called when the POS modal closes
       } else {
-        showToast('Store not configured. Please ask your manager to set up store information in Settings.', 'warning');
+        showToast('Order saved! Ask your manager to set up store info in Settings for POS copy-paste.', 'success');
+        setTimeout(() => clearOrder(), 100);
       }
     } else {
       setTimeout(() => {
@@ -595,6 +597,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
           onClose={() => {
             setShowPOSIntegration(false);
             setSavedOrderForPOS(null);
+            clearOrder();
           }}
         />
       )}
