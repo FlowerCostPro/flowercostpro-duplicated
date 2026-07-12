@@ -300,9 +300,24 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
       {/* Quick Start Guide */}
       <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-        <h4 className="text-lg font-semibold text-gray-800 mb-4">
-          {userRole === 'staff' ? 'How to Create Orders' : 'Quick Start Guide'}
-        </h4>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <h4 className="text-lg font-semibold text-gray-800">
+            {userRole === 'staff' ? 'How to Create Orders' : 'Quick Start Guide'}
+          </h4>
+          {userRole !== 'staff' && (
+            <a
+              href="https://www.loom.com/share/54d6644b2bcb4debac5b866acef4deaa"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+              Watch the 7-minute walkthrough
+            </a>
+          )}
+        </div>
         <div className={`grid grid-cols-1 ${userRole === 'staff' ? 'md:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-4'} gap-4`}>
           {userRole === 'staff' ? (
             <>
