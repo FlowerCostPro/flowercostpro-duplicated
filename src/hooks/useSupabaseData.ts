@@ -536,19 +536,35 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         updateData.low_stock_threshold = updates.lowStockThreshold !== undefined ? updates.lowStockThreshold : null;
       }
 
-      console.log('Updating product template:', templateId, 'with data:', updateData);
+      // Staff: use SECURITY DEFINER RPC (RLS blocks direct UPDATE on owner's rows)
+      if (ownerId && ownerId !== userId) {
+        const { error: rpcError } = await supabase.rpc('restock_product_template', {
+          p_template_id: templateId,
+          p_inventory_count: updates.inventoryCount ?? null,
+          p_low_stock_threshold: updates.lowStockThreshold ?? null
+        });
+        if (rpcError) throw rpcError;
 
+        setProductTemplates((prev: ProductTemplate[]) =>
+          prev.map((template: ProductTemplate) =>
+            template.id === templateId
+              ? { ...template, inventoryCount: updates.inventoryCount, lowStockThreshold: updates.lowStockThreshold ?? template.lowStockThreshold }
+              : template
+          )
+        );
+        return;
+      }
+
+      // Owner: direct update scoped to dataUserId (== userId for owners)
       const { data, error } = await supabase
         .from('product_templates')
         .update(updateData)
         .eq('id', templateId)
-        .eq('user_id', userId)
+        .eq('user_id', dataUserId)
         .select()
         .single();
 
       if (error) throw error;
-
-      console.log('Update successful, new data:', data);
 
       // Update local state with the data from database to ensure consistency
       const updatedTemplate: ProductTemplate = {

@@ -6,7 +6,7 @@ import { useToast } from './Toast';
 interface ProductLibraryProps {
   templates: ProductTemplate[];
   markupSettings: MarkupSettings;
-  onUpdateTemplate: (templateId: string, updates: Partial<ProductTemplate>) => void;
+  onUpdateTemplate: (templateId: string, updates: Partial<ProductTemplate>) => Promise<void>;
   onDeleteTemplate: (templateId: string) => void;
 }
 
@@ -47,7 +47,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
     });
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingTemplate) return;
 
     if (!editForm.name.trim() || !editForm.wholesaleCost || parseFloat(editForm.wholesaleCost) <= 0) {
@@ -55,16 +55,25 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
       return;
     }
 
-    onUpdateTemplate(editingTemplate, {
+    const updates: Partial<ProductTemplate> = {
       name: editForm.name.trim(),
       wholesaleCost: parseFloat(editForm.wholesaleCost),
-      type: editForm.type,
-      inventoryCount: editForm.inventoryCount !== '' ? parseInt(editForm.inventoryCount) : undefined,
-      lowStockThreshold: editForm.lowStockThreshold !== '' ? parseInt(editForm.lowStockThreshold) : undefined
-    });
+      type: editForm.type
+    };
+    if (editForm.inventoryCount !== '') {
+      updates.inventoryCount = parseInt(editForm.inventoryCount);
+    }
+    if (editForm.lowStockThreshold !== '') {
+      updates.lowStockThreshold = parseInt(editForm.lowStockThreshold);
+    }
 
-    setEditingTemplate(null);
-    setEditForm({ name: '', wholesaleCost: '', type: 'stem', inventoryCount: '', lowStockThreshold: '' });
+    try {
+      await onUpdateTemplate(editingTemplate, updates);
+      setEditingTemplate(null);
+      setEditForm({ name: '', wholesaleCost: '', type: 'stem', inventoryCount: '', lowStockThreshold: '' });
+    } catch {
+      showToast('Failed to save changes. Please try again.', 'error');
+    }
   };
 
   const handleCancelEdit = () => {
