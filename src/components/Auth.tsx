@@ -7,9 +7,10 @@ interface AuthProps {
   isPasswordReset?: boolean;
   onBackToLanding?: () => void;
   initialMode?: 'signin' | 'signup';
+  inviteToken?: string;
 }
 
-const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onBackToLanding, initialMode = 'signin' }) => {
+const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onBackToLanding, initialMode = 'signin', inviteToken }) => {
   const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,21 +65,30 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
         const { error } = await signUp(trimmedEmail, formData.password, formData.fullName);
         if (error) throw error;
 
-        // Account created successfully - try to sign in immediately
+        // Sign in immediately after signup
         try {
           const { data: signInData, error: signInError } = await signIn(trimmedEmail, formData.password);
           if (signInError) {
-            setMessage('Account created! Please check your email for confirmation, then sign in.');
+            setMessage('Account created! Please sign in.');
             setIsSignUp(false);
             resetForm();
           } else if (signInData?.user) {
-            // Trial starts automatically — go straight to the dashboard
+            // If there's an invite token, accept it to link this user to the owner
+            if (inviteToken) {
+              const { error: inviteError } = await supabase.rpc('accept_staff_invite', {
+                p_token: inviteToken,
+                p_user_id: signInData.user.id,
+              });
+              if (inviteError) {
+                console.error('Invite accept error:', inviteError);
+              }
+            }
             onAuthSuccess();
           } else {
             onAuthSuccess();
           }
-        } catch (signInError) {
-          setMessage('Account created! Please check your email for confirmation, then sign in.');
+        } catch {
+          setMessage('Account created! Please sign in.');
           setIsSignUp(false);
           resetForm();
         }
@@ -160,13 +170,13 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
             className="h-36 w-auto mx-auto mb-4"
           />
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            {isPasswordReset ? 'Reset Password' : isSignUp ? 'Create Account' : 'Welcome Back'}
+            {isPasswordReset ? 'Reset Password' : isSignUp ? (inviteToken ? 'Accept Invitation' : 'Create Account') : 'Welcome Back'}
           </h1>
           <p className="text-gray-600">
             {isPasswordReset
               ? 'Enter your new password below'
-              : isSignUp 
-              ? 'Start managing your flower shop profits' 
+              : isSignUp
+              ? (inviteToken ? 'Create your staff login to join the shop' : 'Start managing your flower shop profits')
               : 'Sign in to your FlowerCost Pro account'
             }
           </p>
@@ -316,12 +326,20 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
           </div>
         )}
 
-        {isSignUp && !isPasswordReset && (
+        {isSignUp && !isPasswordReset && !inviteToken && (
           <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
             <p className="text-xs text-green-800 font-medium mb-1">14-day free trial included</p>
             <p className="text-xs text-green-700">
               No credit card required to start. $25/month after your trial. Cancel anytime.
               Submitted feedback? You get 30 days free automatically.
+            </p>
+          </div>
+        )}
+        {isSignUp && !isPasswordReset && inviteToken && (
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-xs text-blue-800 font-medium mb-1">Staff account</p>
+            <p className="text-xs text-blue-700">
+              You're creating a staff login. You'll be able to build arrangements and use the recipe library.
             </p>
           </div>
         )}

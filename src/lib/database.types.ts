@@ -311,6 +311,9 @@ export type Database = {
           subscription_status: string | null
           trial_ends_at: string | null
           subscribed_at: string | null
+          account_role: string
+          owner_id: string | null
+          is_admin: boolean
         }
         Insert: {
           created_at?: string
@@ -325,6 +328,9 @@ export type Database = {
           subscription_status?: string | null
           trial_ends_at?: string | null
           subscribed_at?: string | null
+          account_role?: string
+          owner_id?: string | null
+          is_admin?: boolean
         }
         Update: {
           created_at?: string
@@ -339,6 +345,9 @@ export type Database = {
           subscription_status?: string | null
           trial_ends_at?: string | null
           subscribed_at?: string | null
+          account_role?: string
+          owner_id?: string | null
+          is_admin?: boolean
         }
         Relationships: [
           {

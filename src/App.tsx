@@ -14,6 +14,7 @@ import ArrangementRecipes from './components/ArrangementRecipes';
 import ProfitAnalytics from './components/ProfitAnalytics';
 import BusinessInsights from './components/BusinessInsights';
 import StaffTrainingMode from './components/StaffTrainingMode';
+import StaffManagement from './components/StaffManagement';
 import TrialExpiredOverlay from './components/TrialExpiredOverlay';
 import POSConfiguration from './components/POSConfiguration';
 import POSOrderView from './components/POSOrderView';
@@ -22,7 +23,6 @@ import SubscriptionBanner from './components/SubscriptionBanner';
 import { supabase } from './lib/supabase';
 import { useSupabaseData } from './hooks/useSupabaseData';
 import { Product, ProductTemplate, OrderRecord } from './types/Product';
-import { UserRole } from './types/shared';
 import { useToast } from './components/Toast';
 
 interface FeedbackModalProps {
@@ -197,7 +197,10 @@ function App() {
   const { showToast } = useToast();
   const [currentView, setCurrentView] = useState<'landing' | 'auth' | 'dashboard'>('landing');
   const [user, setUser] = useState<any>(null);
-  const [userRole, setUserRole] = useState<UserRole>('owner');
+  // accountRole is loaded from DB: 'owner' or 'staff'. null = not yet loaded.
+  const [accountRole, setAccountRole] = useState<'owner' | 'staff' | null>(null);
+  // ownerId: for owners = their own id; for staff = their owner's id
+  const [ownerId, setOwnerId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState('overview');
   const [isPasswordReset, setIsPasswordReset] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
@@ -207,6 +210,8 @@ function App() {
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  // invite token from URL ?invite=<token>
+  const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(null);
   const isAdminPath = window.location.pathname === '/admin';
 
   const simulation = getSimulatedSubscriptionState();
@@ -233,7 +238,7 @@ function App() {
     updateArrangementRecipe,
     deleteArrangementRecipe,
     savePosSettings
-  } = useSupabaseData(user?.id || null);
+  } = useSupabaseData(user?.id || null, ownerId);
 
   useEffect(() => {
     // Handle Stripe checkout return
@@ -246,10 +251,15 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname);
     }
 
-    // Keep this callback synchronous — never call supabase.from() inside
-    // onAuthStateChange. The SDK has not fully committed the session when the
-    // callback fires; awaiting a DB query here deadlocks the Supabase client
-    // and hangs every subsequent query (including loadAllData).
+    // Check for invite token in URL
+    const inviteToken = params.get('invite');
+    if (inviteToken) {
+      setPendingInviteToken(inviteToken);
+      setAuthMode('signup');
+      setCurrentView('auth');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session?.user) {
@@ -257,6 +267,8 @@ function App() {
           setCurrentView('dashboard');
         } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
           setUser(null);
+          setAccountRole(null);
+          setOwnerId(null);
           setCurrentView('landing');
           setSubscriptionStatus(null);
           setTrialEndsAt(null);
@@ -270,13 +282,13 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch subscription data in a separate effect, safely outside onAuthStateChange.
+  // Fetch profile data (role, subscription, admin flag) outside onAuthStateChange.
   useEffect(() => {
     if (!user?.id) return;
     const userId = user.id;
     supabase
       .from('profiles')
-      .select('subscription_status, trial_ends_at, is_admin')
+      .select('subscription_status, trial_ends_at, is_admin, account_role, owner_id')
       .eq('id', userId)
       .maybeSingle()
       .then(({ data }) => {
@@ -284,9 +296,14 @@ function App() {
           setSubscriptionStatus(data.subscription_status ?? 'trialing');
           setTrialEndsAt(data.trial_ends_at ?? null);
           setIsAdmin(data.is_admin === true);
+          const role = (data.account_role as 'owner' | 'staff') ?? 'owner';
+          setAccountRole(role);
+          // For staff: owner_id is their shop owner's id.
+          // For owners: ownerId = their own id (so data queries still work).
+          setOwnerId(role === 'staff' ? data.owner_id : userId);
         }
       })
-      .catch((err) => console.error('Error fetching subscription:', err));
+      .catch((err) => console.error('Error fetching profile:', err));
   }, [user?.id]);
 
   const handleStartTrial = () => {
@@ -323,9 +340,10 @@ function App() {
     try {
       await supabase.auth.signOut();
       setUser(null);
+      setAccountRole(null);
+      setOwnerId(null);
       setCurrentView('landing');
       setActiveSection('overview');
-      setUserRole('owner');
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -398,6 +416,14 @@ function App() {
   const userName = user?.user_metadata?.full_name || profile?.full_name || (user ? 'User' : 'Demo User');
   const storeName = profile?.store_name || posSettings?.storeName || 'Demo Flower Shop';
 
+  // Sections that staff are completely forbidden from accessing
+  const OWNER_ONLY_SECTIONS = new Set([
+    'settings', 'analytics', 'insights', 'products', 'low-stock',
+    'orders', 'staff-training', 'team',
+  ]);
+
+  const isStaff = accountRole === 'staff';
+
   if (currentView === 'landing') {
     return (
       <ErrorBoundary FallbackComponent={ErrorFallback}>
@@ -421,6 +447,7 @@ function App() {
           isPasswordReset={isPasswordReset}
           onBackToLanding={handleBackToLanding}
           initialMode={authMode}
+          inviteToken={pendingInviteToken ?? undefined}
         />
       </ErrorBoundary>
     );
@@ -473,6 +500,18 @@ function App() {
   }
 
   const renderActiveSection = () => {
+    // Hard block: staff cannot access owner-only sections regardless of URL/state
+    if (isStaff && OWNER_ONLY_SECTIONS.has(activeSection)) {
+      return (
+        <div className="flex items-center justify-center min-h-64">
+          <div className="text-center p-8 bg-red-50 border border-red-200 rounded-xl max-w-md">
+            <p className="text-red-700 font-semibold text-lg mb-2">Access Denied</p>
+            <p className="text-red-600 text-sm">This section is only available to the shop owner.</p>
+          </div>
+        </div>
+      );
+    }
+
     switch (activeSection) {
       case 'create-order':
         return (
@@ -564,10 +603,17 @@ function App() {
               products={currentOrderProducts}
               markupSettings={markupSettings}
               targetBudget={100}
-              userRole={userRole}
+              userRole="owner"
             />
             <POSOrderView orders={savedOrders} />
           </div>
+        );
+      case 'team':
+        return (
+          <StaffManagement
+            ownerId={user?.id ?? ''}
+            ownerEmail={user?.email ?? ''}
+          />
         );
       default:
         return null;
@@ -576,7 +622,7 @@ function App() {
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      {user?.id && !isAdmin && (
+      {user?.id && !isAdmin && accountRole === 'owner' && (
         <SubscriptionBanner
           userId={user.id}
           email={user.email ?? ''}
@@ -584,8 +630,8 @@ function App() {
           trialEndsAt={effectiveTrialEndsAt}
         />
       )}
-      {/* Paywall overlay — blocks access when trial has expired. Never shown to admin. */}
-      {user?.id && !isAdmin && (() => {
+      {/* Paywall overlay — only shown to owners (staff accounts don't have their own subscription) */}
+      {user?.id && !isAdmin && accountRole === 'owner' && (() => {
         if (effectiveStatus === 'active') return null;
         const trialEnd = effectiveTrialEndsAt ? new Date(effectiveTrialEndsAt) : null;
         const expired = trialEnd ? trialEnd < new Date() : false;
@@ -601,10 +647,9 @@ function App() {
         );
       })()}
       <Dashboard
-        userRole={userRole}
+        accountRole={accountRole ?? 'owner'}
         userName={userName}
         storeName={storeName}
-        onRoleChange={setUserRole}
         activeSection={activeSection}
         onSectionChange={handleSectionChange}
         onLogout={handleLogout}
@@ -613,7 +658,7 @@ function App() {
       >
         <DashboardContent
           activeSection={activeSection}
-          userRole={userRole}
+          userRole={accountRole === 'staff' ? 'staff' : 'owner'}
           orders={savedOrders}
           templates={productTemplates}
           onSectionChange={handleSectionChange}

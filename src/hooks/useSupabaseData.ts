@@ -16,7 +16,11 @@ interface RawOrderRecord extends Omit<OrderRecord, 'date' | 'products'> {
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
-export const useSupabaseData = (userId: string | null) => {
+// For staff accounts, ownerId is the shop owner's user_id (their data bucket).
+// For owner accounts, ownerId === userId.
+export const useSupabaseData = (userId: string | null, ownerId?: string | null) => {
+  // The data owner is whoever owns the shop — for staff that's their owner, for owners it's themselves.
+  const dataUserId = ownerId ?? userId;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [productTemplates, setProductTemplates] = useState<ProductTemplate[]>([]);
   const [markupSettings, setMarkupSettings] = useState<MarkupSettings>({
@@ -34,13 +38,13 @@ export const useSupabaseData = (userId: string | null) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadProfile = async () => {
-    if (!userId) return;
+    if (!dataUserId) return;
 
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', dataUserId)
         .maybeSingle();
 
       if (error) throw error;
@@ -52,13 +56,13 @@ export const useSupabaseData = (userId: string | null) => {
 
   // Load product templates
   const loadProductTemplates = async () => {
-    if (!userId) return;
+    if (!dataUserId) return;
 
     try {
       const { data, error } = await supabase
         .from('product_templates')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', dataUserId)
         .order('last_used', { ascending: false });
 
       if (error) throw error;
@@ -82,13 +86,13 @@ export const useSupabaseData = (userId: string | null) => {
 
   // Load markup settings
   const loadMarkupSettings = async () => {
-    if (!userId) return;
+    if (!dataUserId) return;
 
     try {
       const { data, error } = await supabase
         .from('markup_settings')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', dataUserId)
         .maybeSingle();
 
       if (error) {
@@ -120,7 +124,7 @@ export const useSupabaseData = (userId: string | null) => {
 
   // Load saved orders
   const loadSavedOrders = async () => {
-    if (!userId) return;
+    if (!dataUserId) return;
 
     try {
       const { data: ordersData, error: ordersError } = await supabase
@@ -129,7 +133,7 @@ export const useSupabaseData = (userId: string | null) => {
           *,
           order_products (*)
         `)
-        .eq('user_id', userId)
+        .eq('user_id', dataUserId)
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
@@ -163,7 +167,7 @@ export const useSupabaseData = (userId: string | null) => {
 
   // Load arrangement recipes
   const loadArrangementRecipes = async () => {
-    if (!userId) return;
+    if (!dataUserId) return;
 
     try {
       const { data: recipesData, error: recipesError } = await supabase
@@ -172,7 +176,7 @@ export const useSupabaseData = (userId: string | null) => {
           *,
           recipe_ingredients (*)
         `)
-        .eq('user_id', userId)
+        .eq('user_id', dataUserId)
         .order('updated_at', { ascending: false });
 
       if (recipesError) throw recipesError;
@@ -202,13 +206,13 @@ export const useSupabaseData = (userId: string | null) => {
 
   // Load POS settings
   const loadPosSettings = async () => {
-    if (!userId) return;
+    if (!dataUserId) return;
 
     try {
       const { data, error } = await supabase
         .from('pos_settings')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', dataUserId)
         .maybeSingle();
 
       if (error) {
@@ -237,7 +241,7 @@ export const useSupabaseData = (userId: string | null) => {
   // Load all data
   const loadAllData = async () => {
     if (!userId) {
-      // Demo mode: Load data from sample-florist-data.json
+      // Demo mode (not logged in)
       console.log('Demo mode: Loading sample data...');
       
       // Load product templates from localStorage first, fallback to sample data
@@ -603,11 +607,11 @@ export const useSupabaseData = (userId: string | null) => {
     }
 
     try {
-      // Insert order
+      // Insert order — use dataUserId (owner's id) so all orders appear under the shop's account
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
-          user_id: userId,
+          user_id: dataUserId,
           name: order.name,
           total_wholesale: order.totalWholesale,
           total_retail: order.totalRetail,
@@ -1035,7 +1039,7 @@ export const useSupabaseData = (userId: string | null) => {
     }
     
     loadAllData();
-  }, [userId]);
+  }, [userId, dataUserId]);
 
   return {
     profile,

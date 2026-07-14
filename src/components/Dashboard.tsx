@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, Package, Settings, TrendingUp, BookOpen, ShoppingCart, User, Crown, Shield, LogOut, MessageSquare, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Users, Package, Settings, TrendingUp, BookOpen, ShoppingCart, User, Crown, LogOut, MessageSquare, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { ProductTemplate } from '../types/Product';
 
 interface DashboardProps {
-  userRole: 'owner' | 'manager' | 'staff';
+  accountRole: 'owner' | 'staff';
   userName: string;
   storeName: string;
-  onRoleChange: (role: 'owner' | 'manager' | 'staff') => void;
   activeSection: string;
   onSectionChange: (section: string) => void;
   onLogout: () => void;
@@ -16,10 +15,9 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
-  userRole,
+  accountRole,
   userName,
   storeName,
-  onRoleChange,
   activeSection,
   onSectionChange,
   onLogout,
@@ -36,49 +34,30 @@ const Dashboard: React.FC<DashboardProps> = ({
     return false;
   }).length;
 
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'owner': return <Crown className="w-4 h-4 text-yellow-600" />;
-      case 'manager': return <Shield className="w-4 h-4 text-blue-600" />;
-      case 'staff': return <User className="w-4 h-4 text-green-600" />;
-      default: return <User className="w-4 h-4" />;
-    }
-  };
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'owner': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'manager': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'staff': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
+  // Owner-only sections. Staff never sees them and cannot navigate to them.
   const menuItems = [
-    // All roles
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard, roles: ['owner', 'manager', 'staff'] },
-
-    // Setup flow - Owner only
-    { id: 'settings', label: 'Settings', icon: Settings, roles: ['owner'] },
-    { id: 'recipes', label: 'Arrangement Recipes', icon: BookOpen, roles: ['owner', 'manager'] },
-
-    // Daily operations - All roles
-    { id: 'create-order', label: 'Create Order', icon: ShoppingCart, roles: ['owner', 'manager', 'staff'] },
-    { id: 'orders', label: 'Order History', icon: ShoppingCart, roles: ['owner', 'manager'] },
-
-    // Training - Owner only
-    { id: 'staff-training', label: 'Staff Training', icon: Users, roles: ['owner'] },
-
-    // Inventory - Owner & Manager only (between training and analytics)
-    { id: 'products', label: 'Product Library', icon: Package, roles: ['owner', 'manager'] },
-    { id: 'low-stock', label: 'Low Stock Alert', icon: AlertTriangle, roles: ['owner', 'manager'] },
-
-    // Analysis - Owner & Manager only
-    { id: 'analytics', label: 'Profit Analytics', icon: TrendingUp, roles: ['owner', 'manager'] },
-    { id: 'insights', label: 'Business Insights', icon: TrendingUp, roles: ['owner', 'manager'] },
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard, ownerOnly: false },
+    { id: 'create-order', label: 'Create Order', icon: ShoppingCart, ownerOnly: false },
+    { id: 'recipes', label: 'Arrangement Recipes', icon: BookOpen, ownerOnly: false },
+    { id: 'orders', label: 'Order History', icon: ShoppingCart, ownerOnly: true },
+    { id: 'products', label: 'Product Library', icon: Package, ownerOnly: true },
+    { id: 'low-stock', label: 'Low Stock Alert', icon: AlertTriangle, ownerOnly: true },
+    { id: 'analytics', label: 'Profit Analytics', icon: TrendingUp, ownerOnly: true },
+    { id: 'insights', label: 'Business Insights', icon: TrendingUp, ownerOnly: true },
+    { id: 'staff-training', label: 'Staff Training', icon: Users, ownerOnly: true },
+    { id: 'team', label: 'Team', icon: Users, ownerOnly: true },
+    { id: 'settings', label: 'Settings', icon: Settings, ownerOnly: true },
   ];
 
-  const visibleMenuItems = menuItems.filter(item => item.roles.includes(userRole));
+  const visibleMenuItems = menuItems.filter(item =>
+    accountRole === 'owner' ? true : !item.ownerOnly
+  );
+
+  const roleLabel = accountRole === 'owner' ? 'Owner' : 'Designer';
+  const RoleIcon = accountRole === 'owner' ? Crown : User;
+  const roleBadgeClass = accountRole === 'owner'
+    ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+    : 'bg-green-100 text-green-800 border-green-200';
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -104,14 +83,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <div className="bg-gray-100 p-2 rounded-full">
-              {getRoleIcon(userRole)}
+              <RoleIcon className={`w-4 h-4 ${accountRole === 'owner' ? 'text-yellow-600' : 'text-green-600'}`} />
             </div>
             {sidebarOpen && (
-              <div className="flex-1">
-                <div className="font-medium text-gray-800">{userName || 'User'}</div>
-                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getRoleColor(userRole)}`}>
-                  {getRoleIcon(userRole)}
-                  {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-gray-800 truncate">{userName || 'User'}</div>
+                <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${roleBadgeClass}`}>
+                  <RoleIcon className="w-3 h-3" />
+                  {roleLabel}
                 </div>
               </div>
             )}
@@ -119,12 +98,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4">
-          <ul className="space-y-2">
+        <nav className="flex-1 p-4 overflow-y-auto">
+          <ul className="space-y-1">
             {visibleMenuItems.map((item) => {
               const IconComponent = item.icon;
               const isActive = activeSection === item.id;
-              
+
               return (
                 <li key={item.id}>
                   <button
@@ -140,7 +119,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <span className="font-medium flex-1 text-left">{item.label}</span>
                     )}
                     {item.id === 'low-stock' && lowStockCount > 0 && (
-                      <span className={`${sidebarOpen ? '' : 'absolute top-0 right-0'} min-w-[1.25rem] h-5 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full px-1`}>
+                      <span className="min-w-[1.25rem] h-5 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full px-1">
                         {lowStockCount}
                       </span>
                     )}
@@ -150,26 +129,6 @@ const Dashboard: React.FC<DashboardProps> = ({
             })}
           </ul>
         </nav>
-
-        {/* Demo Role Switcher */}
-        {sidebarOpen && (
-          <div className="p-4 border-t border-gray-200">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-2">
-                {userName === 'Demo User' ? 'Demo Mode - Switch Role:' : 'Switch Role:'}
-              </label>
-              <select
-                value={userRole}
-                onChange={(e) => onRoleChange(e.target.value as 'owner' | 'manager' | 'staff')}
-                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="owner">Owner</option>
-                <option value="manager">Manager</option>
-                <option value="staff">Staff</option>
-              </select>
-            </div>
-          </div>
-        )}
 
         {/* Sidebar Toggle */}
         <div className="p-4 border-t border-gray-200">
@@ -183,7 +142,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
         <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -191,30 +150,22 @@ const Dashboard: React.FC<DashboardProps> = ({
               <h2 className="text-2xl font-bold text-gray-800">
                 {visibleMenuItems.find(item => item.id === activeSection)?.label || 'Dashboard'}
               </h2>
-              <p className="text-gray-600">
-                {userRole === 'staff' 
+              <p className="text-gray-600 text-sm">
+                {accountRole === 'staff'
                   ? 'Create beautiful arrangements within budget'
-                  : userRole === 'manager'
-                  ? 'Manage products and monitor performance'
                   : 'Full business control and analytics'
                 }
               </p>
             </div>
-            
+
             <div className="flex items-center gap-4">
-              <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getRoleColor(userRole)}`}>
-                {getRoleIcon(userRole)}
-                <span className="ml-1">{userRole.charAt(0).toUpperCase() + userRole.slice(1)} Access</span>
+              <div className={`px-3 py-1 rounded-full text-sm font-medium border flex items-center gap-1 ${roleBadgeClass}`}>
+                <RoleIcon className="w-3.5 h-3.5" />
+                {roleLabel}
               </div>
               <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('Dashboard feedback button clicked');
-                  onShowFeedback();
-                }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onShowFeedback(); }}
                 className="flex items-center gap-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-                title="Give feedback"
               >
                 <MessageSquare className="w-4 h-4" />
                 Feedback
@@ -222,7 +173,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               <button
                 onClick={onLogout}
                 className="flex items-center gap-2 px-3 py-1 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                title="Sign out"
               >
                 <LogOut className="w-4 h-4" />
                 Sign Out
