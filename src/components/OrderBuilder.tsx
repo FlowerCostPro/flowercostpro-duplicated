@@ -9,8 +9,8 @@ interface OrderBuilderProps {
   templates: ProductTemplate[];
   recipes: ArrangementRecipe[];
   markupSettings: MarkupSettings;
-  onSaveOrder: (order: OrderRecord) => void;
-  onUpdateOrder?: (orderId: string, order: OrderRecord) => void;
+  onSaveOrder: (order: OrderRecord) => Promise<void> | void;
+  onUpdateOrder?: (orderId: string, order: OrderRecord) => Promise<void> | void;
   onOrderChange?: (products: Product[]) => void;
   userRole?: 'owner' | 'manager' | 'staff';
   posSettings: POSSettings;
@@ -436,7 +436,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     }
   };
 
-  const handleSaveOrder = () => {
+  const handleSaveOrder = async () => {
     if (!orderName.trim() || orderItems.length === 0) {
       if (!orderName.trim()) {
         showToast('Please enter an order name before saving.', 'warning');
@@ -492,10 +492,15 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     console.log('Final order object:', order);
 
     // Save or update the order
-    if (editingOrderId && onUpdateOrder) {
-      onUpdateOrder(editingOrderId, order);
-    } else {
-      onSaveOrder(order);
+    try {
+      if (editingOrderId && onUpdateOrder) {
+        await onUpdateOrder(editingOrderId, order);
+      } else {
+        await onSaveOrder(order);
+      }
+    } catch (err: any) {
+      showToast(`Failed to save order: ${err?.message ?? 'Unknown error'}`, 'error');
+      return;
     }
 
     // Handle POS integration based on configuration

@@ -147,6 +147,36 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     if (!dataUserId) return;
 
     try {
+      // Staff: use secure RPC — no wholesale/profit/labor fields are returned
+      if (ownerId) {
+        const { data, error } = await supabase.rpc('get_staff_saved_orders');
+        if (error) throw error;
+        const orders: OrderRecord[] = (data as any[]).map((order: any) => ({
+          id: order.id,
+          name: order.name,
+          date: new Date(order.created_at),
+          products: (order.products || []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            wholesaleCost: 0,
+            quantity: p.quantity,
+            type: p.type
+          })),
+          totalWholesale: 0,
+          totalRetail: Number(order.total_retail),
+          profit: 0,
+          photo: order.photo || undefined,
+          notes: order.notes || undefined,
+          staffName: order.staff_name || undefined,
+          staffId: order.staff_id || undefined,
+          customerPrice: order.customer_price != null ? Number(order.customer_price) : null,
+          laborAmount: undefined
+        }));
+        setSavedOrders(orders);
+        return;
+      }
+
+      // Owner: full data including wholesale/profit/labor
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select(`
