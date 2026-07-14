@@ -743,11 +743,11 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                           )}
                         </div>
                         <div className="text-sm text-gray-500">
-                          ${template.wholesaleCost.toFixed(2)} • {template.type}
+                          ${(template.retailPrice ?? (template.wholesaleCost * markupSettings[template.type])).toFixed(2)} • {template.type}
                         </div>
                       </div>
                       <div className="text-sm text-blue-600">
-                        ${(template.wholesaleCost * markupSettings[template.type]).toFixed(2)} retail
+                        ${(template.retailPrice ?? (template.wholesaleCost * markupSettings[template.type])).toFixed(2)} retail
                       </div>
                     </div>
                   </div>
