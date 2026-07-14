@@ -69,7 +69,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       // Convert products to OrderItems
       const items: OrderItem[] = initialOrder.products.map(product => {
         const markup = markupSettings[product.type];
-        const retailPrice = product.wholesaleCost * markup;
+        const retailPrice = Math.round(product.wholesaleCost * markup * 100) / 100;
         const totalWholesale = product.wholesaleCost * product.quantity;
         const totalRetail = retailPrice * product.quantity;
 
@@ -120,7 +120,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
   const addItemFromTemplate = (template: ProductTemplate, quantity: number = 1) => {
     // Use pre-computed retailPrice when available (staff templates from secure RPC)
-    const retailPrice = template.retailPrice ?? (template.wholesaleCost * markupSettings[template.type]);
+    const retailPrice = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[template.type] * 100) / 100;
     const totalWholesale = template.wholesaleCost * quantity;
     const totalRetail = retailPrice * quantity;
 
@@ -167,7 +167,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
       if (template) {
         // Use pre-computed retailPrice when available (staff templates from secure RPC)
-        const retailPrice = template.retailPrice ?? (template.wholesaleCost * markupSettings[ingredient.type]);
+        const retailPrice = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[ingredient.type] * 100) / 100;
         const totalWholesale = template.wholesaleCost * ingredient.quantity;
         const totalRetail = retailPrice * ingredient.quantity;
 
@@ -773,11 +773,11 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                           )}
                         </div>
                         <div className="text-sm text-gray-500">
-                          ${(template.retailPrice ?? (template.wholesaleCost * markupSettings[template.type])).toFixed(2)} • {template.type}
+                          ${(template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[template.type] * 100) / 100).toFixed(2)} • {template.type}
                         </div>
                       </div>
                       <div className="text-sm text-blue-600">
-                        ${(template.retailPrice ?? (template.wholesaleCost * markupSettings[template.type])).toFixed(2)} retail
+                        ${(template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[template.type] * 100) / 100).toFixed(2)} retail
                       </div>
                     </div>
                   </div>
