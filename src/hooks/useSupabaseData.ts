@@ -60,8 +60,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
 
     try {
       // Staff: use secure RPC — returns retail_price but NOT wholesale_cost
-      if (ownerId) {
-        const { data, error } = await supabase.rpc('get_staff_product_templates');
+      if (ownerId && ownerId !== userId) {
         if (error) throw error;
         const templates: ProductTemplate[] = (data || []).map((item: any) => ({
           id: item.id,
@@ -148,7 +147,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
 
     try {
       // Staff: use secure RPC — no wholesale/profit/labor fields are returned
-      if (ownerId) {
+      if (ownerId && ownerId !== userId) {
         const { data, error } = await supabase.rpc('get_staff_saved_orders');
         if (error) throw error;
         const orders: OrderRecord[] = (data as any[]).map((order: any) => ({
@@ -661,7 +660,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
 
     try {
       // Staff: use secure RPC — wholesale costs are never sent by or returned to the client
-      if (ownerId) {
+      if (ownerId && ownerId !== userId) {
         const products = order.products
           .filter(p => p.templateId)
           .map(p => ({ template_id: p.templateId, quantity: p.quantity }));
