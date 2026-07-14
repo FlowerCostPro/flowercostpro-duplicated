@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { ProductTemplate, MarkupSettings, OrderRecord, ArrangementRecipe, POSSettings, Product } from '../types/Product';
 import { Database } from '../lib/database.types';
@@ -21,6 +21,9 @@ type Profile = Database['public']['Tables']['profiles']['Row'];
 export const useSupabaseData = (userId: string | null, ownerId?: string | null) => {
   // The data owner is whoever owns the shop — for staff that's their owner, for owners it's themselves.
   const dataUserId = ownerId ?? userId;
+  // Ref always holds the latest dataUserId so async callbacks can detect stale loads.
+  const dataUserIdRef = useRef<string | null>(null);
+  dataUserIdRef.current = dataUserId;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [productTemplates, setProductTemplates] = useState<ProductTemplate[]>([]);
   const [markupSettings, setMarkupSettings] = useState<MarkupSettings>({
@@ -57,12 +60,14 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
   // Load product templates
   const loadProductTemplates = async () => {
     if (!dataUserId) return;
+    const capturedDataUserId = dataUserId;
 
     try {
       // Staff: use secure RPC — returns retail_price but NOT wholesale_cost
       if (ownerId && ownerId !== userId) {
         const { data, error } = await supabase.rpc('get_staff_product_templates');
         if (error) throw error;
+        if (dataUserIdRef.current !== capturedDataUserId) return; // stale load
         const templates: ProductTemplate[] = (data || []).map((item: any) => ({
           id: item.id,
           name: item.name,
@@ -85,6 +90,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         .order('last_used', { ascending: false });
 
       if (error) throw error;
+      if (dataUserIdRef.current !== capturedDataUserId) return; // stale load
 
       const templates: ProductTemplate[] = data.map(item => ({
         id: item.id,
@@ -145,12 +151,14 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
   // Load saved orders
   const loadSavedOrders = async () => {
     if (!dataUserId) return;
+    const capturedDataUserId = dataUserId;
 
     try {
       // Staff: use secure RPC — no wholesale/profit/labor fields are returned
       if (ownerId && ownerId !== userId) {
         const { data, error } = await supabase.rpc('get_staff_saved_orders');
         if (error) throw error;
+        if (dataUserIdRef.current !== capturedDataUserId) return; // stale load
         const orders: OrderRecord[] = (data as any[]).map((order: any) => ({
           id: order.id,
           name: order.name,
@@ -187,6 +195,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
+      if (dataUserIdRef.current !== capturedDataUserId) return; // stale load
 
       const orders: OrderRecord[] = ordersData.map(order => ({
         id: order.id,
