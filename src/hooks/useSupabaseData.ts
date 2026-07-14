@@ -188,13 +188,13 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           })),
           totalWholesale: 0,
           totalRetail: Number(order.total_retail),
-          profit: 0,
           photo: order.photo || undefined,
           notes: order.notes || undefined,
           staffName: order.staff_name || undefined,
           staffId: order.staff_id || undefined,
           customerPrice: order.customer_price != null ? Number(order.customer_price) : null,
-          laborAmount: undefined
+          laborAmount: order.labor_amount != null ? Number(order.labor_amount) : undefined,
+          profit: order.profit != null ? Number(order.profit) : 0
         }));
         setSavedOrders(orders);
         return;

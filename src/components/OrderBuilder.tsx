@@ -9,7 +9,7 @@ interface OrderBuilderProps {
   templates: ProductTemplate[];
   recipes: ArrangementRecipe[];
   markupSettings: MarkupSettings;
-  onSaveOrder: (order: OrderRecord) => Promise<void> | void;
+  onSaveOrder: (order: OrderRecord) => Promise<OrderRecord | void> | void;
   onUpdateOrder?: (orderId: string, order: OrderRecord) => Promise<void> | void;
   onOrderChange?: (products: Product[]) => void;
   userRole?: 'owner' | 'manager' | 'staff';
@@ -46,6 +46,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   // For staff: the server-computed working budget (customer price minus labor)
   // null = not yet fetched or no budget entered
   const [workingBudgetForStaff, setWorkingBudgetForStaff] = useState<number | null>(null);
+  const [workingBudgetLoading, setWorkingBudgetLoading] = useState(false);
   const [arrangementMode, setArrangementMode] = useState<'custom' | 'recipe'>('custom');
   const [recipeSearchTerm, setRecipeSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -96,15 +97,20 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     const val = parseFloat(customerBudget);
     if (!customerBudget || isNaN(val) || val <= 0) {
       setWorkingBudgetForStaff(null);
+      setWorkingBudgetLoading(false);
       return;
     }
     let cancelled = false;
+    setWorkingBudgetLoading(true);
     const timer = setTimeout(async () => {
       const { data, error } = await supabase.rpc('get_working_budget_for_staff', {
         p_customer_budget: val
       });
-      if (!cancelled && !error && data) {
-        setWorkingBudgetForStaff(Number(data.working_budget));
+      if (!cancelled) {
+        setWorkingBudgetLoading(false);
+        if (!error && data) {
+          setWorkingBudgetForStaff(Number(data.working_budget));
+        }
       }
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
@@ -492,11 +498,13 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     console.log('Final order object:', order);
 
     // Save or update the order
+    let savedOrder: OrderRecord | undefined;
     try {
       if (editingOrderId && onUpdateOrder) {
         await onUpdateOrder(editingOrderId, order);
       } else {
-        await onSaveOrder(order);
+        const result = await onSaveOrder(order);
+        if (result) savedOrder = result;
       }
     } catch (err: any) {
       showToast(`Failed to save order: ${err?.message ?? 'Unknown error'}`, 'error');
@@ -507,7 +515,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     if (userRole === 'staff') {
       console.log('Staff mode - checking store configuration:', posSettings.isConfigured, posSettings.storeName);
       if (posSettings.isConfigured && posSettings.storeName) {
-        setSavedOrderForPOS(order);
+        setSavedOrderForPOS(savedOrder ?? order);
         setShowPOSIntegration(true);
         // clearOrder is called when the POS modal closes
       } else {
@@ -918,7 +926,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
             // Staff: use server-computed working budget (labor deducted server-side, never revealed)
             // Fall back to fullBudget while the RPC response is still in-flight
             const workingBudget = userRole === 'staff'
-              ? (workingBudgetForStaff ?? fullBudget)
+              ? (workingBudgetForStaff ?? 0)
               : (laborPct > 0 ? fullBudget * (1 - laborPct / 100) : fullBudget);
             const remaining = workingBudget - totalRetail;
             const pct = Math.min((totalRetail / workingBudget) * 100, 100);
@@ -933,9 +941,11 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-semibold text-gray-700">Budget Tracker</span>
                   <span className={`text-sm font-bold ${textColor}`}>
-                    {isOver
-                      ? `Over budget by $${Math.abs(remaining).toFixed(2)}`
-                      : `$${remaining.toFixed(2)} remaining`}
+                    {workingBudgetLoading
+                      ? 'Calculating...'
+                      : isOver
+                        ? `Over budget by ${Math.abs(remaining).toFixed(2)}`
+                        : `${remaining.toFixed(2)} remaining`}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3 overflow-hidden">
@@ -947,7 +957,9 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                 <div className="grid grid-cols-3 text-xs text-gray-600 gap-2">
                   <div>
                     <div className="text-gray-500">{userRole === 'staff' ? 'Flower Budget' : 'Customer Price'}</div>
-                    <div className="font-semibold text-gray-800">${workingBudget.toFixed(2)}</div>
+                    <div className="font-semibold text-gray-800">
+                      {workingBudgetLoading ? '…' : `${workingBudget.toFixed(2)}`}
+                    </div>
                   </div>
                   <div>
                     <div className="text-gray-500">Used so far</div>
