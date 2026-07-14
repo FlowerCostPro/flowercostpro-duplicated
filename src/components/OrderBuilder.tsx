@@ -112,8 +112,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         setWorkingBudgetLoading(false);
         if (error) {
           console.error('get_working_budget_for_staff RPC error:', error);
-        } else if (data) {
-          setWorkingBudgetForStaff(Number(data.working_budget));
+        } else if (data && Array.isArray(data) && data.length > 0) {
+          setWorkingBudgetForStaff(Number(data[0].working_budget));
         }
       }
     }, 400);

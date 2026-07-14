@@ -194,7 +194,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           staffId: order.staff_id || undefined,
           customerPrice: order.customer_price != null ? Number(order.customer_price) : null,
           laborAmount: order.labor_amount != null ? Number(order.labor_amount) : undefined,
-          profit: order.profit != null ? Number(order.profit) : 0
+          profit: 0
         }));
         setSavedOrders(orders);
         return;
@@ -725,7 +725,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           date: new Date(rpcData.created_at),
           totalRetail: Number(rpcData.total_retail),
           totalWholesale: 0,
-          profit: Number(rpcData.profit ?? 0),
+          profit: 0,
           laborAmount: rpcData.labor_amount != null ? Number(rpcData.labor_amount) : undefined
         };
 
