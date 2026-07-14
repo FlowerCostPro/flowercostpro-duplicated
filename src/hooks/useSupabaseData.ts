@@ -114,6 +114,22 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     if (!dataUserId) return;
 
     try {
+      // Staff: use secure RPC — labor_percent is never returned
+      if (ownerId && ownerId !== userId) {
+        const { data, error } = await supabase.rpc('get_staff_markup_settings');
+        if (error) throw error;
+        if (data) {
+          setMarkupSettings({
+            stem: Number(data.stem),
+            vase: Number(data.vase),
+            accessory: Number(data.accessory),
+            other: Number(data.other),
+            laborPercent: null
+          });
+        }
+        return;
+      }
+
       const { data, error } = await supabase
         .from('markup_settings')
         .select('*')
