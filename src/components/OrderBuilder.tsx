@@ -100,6 +100,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       setWorkingBudgetLoading(false);
       return;
     }
+    // Reset immediately so we don't use a stale working budget for the new input
+    setWorkingBudgetForStaff(null);
     let cancelled = false;
     setWorkingBudgetLoading(true);
     const timer = setTimeout(async () => {
@@ -108,7 +110,9 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       });
       if (!cancelled) {
         setWorkingBudgetLoading(false);
-        if (!error && data) {
+        if (error) {
+          console.error('get_working_budget_for_staff RPC error:', error);
+        } else if (data) {
           setWorkingBudgetForStaff(Number(data.working_budget));
         }
       }
@@ -926,7 +930,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
             // Staff: use server-computed working budget (labor deducted server-side, never revealed)
             // Fall back to fullBudget while the RPC response is still in-flight
             const workingBudget = userRole === 'staff'
-              ? (workingBudgetForStaff ?? 0)
+              ? (workingBudgetForStaff ?? fullBudget)
               : (laborPct > 0 ? fullBudget * (1 - laborPct / 100) : fullBudget);
             const remaining = workingBudget - totalRetail;
             const pct = Math.min((totalRetail / workingBudget) * 100, 100);
