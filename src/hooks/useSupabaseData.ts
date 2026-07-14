@@ -629,7 +629,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           accessory: settings.accessory,
           other: settings.other,
           labor_percent: settings.laborPercent ?? null
-        });
+        }, { onConflict: 'user_id' });
 
       if (error) throw error;
 
@@ -681,6 +681,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           p_staff_name: order.staffName || null,
           p_staff_id: order.staffId || null,
           p_customer_budget: order.customerPrice ?? null,
+          p_photo: order.photo || null,
           p_products: products
         });
 

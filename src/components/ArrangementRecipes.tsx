@@ -71,7 +71,7 @@ const ArrangementRecipes = ({
       if (template) {
         const wholesaleCost = template.wholesaleCost * ingredient.quantity;
         const markup = markupSettings[ingredient.type];
-        const retailCost = template.wholesaleCost * markup * ingredient.quantity;
+        const retailCost = Math.round(template.wholesaleCost * markup * 100) / 100 * ingredient.quantity;
         
         totalWholesale += wholesaleCost;
         totalRetail += retailCost;
