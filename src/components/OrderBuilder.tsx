@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
+import React, { useState, useEffect, useRef, useCallback, ChangeEvent } from 'react';
 import { ShoppingCart, Plus, Minus, Search, X, Camera, RefreshCw, Copy, Image } from 'lucide-react';
 import { Product, MarkupSettings, ProductTemplate, OrderRecord, ArrangementRecipe, POSSettings } from '../types/Product';
 import POSIntegration from './POSIntegration';
 import { useToast } from './Toast';
+import { supabase } from '../lib/supabase';
 
 interface OrderBuilderProps {
   templates: ProductTemplate[];
@@ -42,6 +43,9 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   const [staffName, setStaffName] = useState('');
   const [staffId, setStaffId] = useState('');
   const [customerBudget, setCustomerBudget] = useState<string>('');
+  // For staff: the server-computed working budget (customer price minus labor)
+  // null = not yet fetched or no budget entered
+  const [workingBudgetForStaff, setWorkingBudgetForStaff] = useState<number | null>(null);
   const [arrangementMode, setArrangementMode] = useState<'custom' | 'recipe'>('custom');
   const [recipeSearchTerm, setRecipeSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -84,6 +88,27 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       setOrderItems(items);
     }
   }, [initialOrder, markupSettings]);
+
+  // For staff: fetch working budget from server whenever the customer budget changes.
+  // The server applies the labor deduction without revealing the percentage.
+  useEffect(() => {
+    if (userRole !== 'staff') return;
+    const val = parseFloat(customerBudget);
+    if (!customerBudget || isNaN(val) || val <= 0) {
+      setWorkingBudgetForStaff(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const { data, error } = await supabase.rpc('get_working_budget_for_staff', {
+        p_customer_budget: val
+      });
+      if (!cancelled && !error && data) {
+        setWorkingBudgetForStaff(Number(data.working_budget));
+      }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [customerBudget, userRole]);
   
   const filteredTemplates = templates.filter((template: ProductTemplate) =>
     template.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
@@ -885,10 +910,11 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
           {customerBudget && parseFloat(customerBudget) > 0 && (() => {
             const fullBudget = parseFloat(customerBudget);
             const laborPct = markupSettings.laborPercent ?? 0;
-            // For staff: silently apply labor deduction so they build to the reduced amount
-            const workingBudget = (userRole === 'staff' && laborPct > 0)
-              ? fullBudget * (1 - laborPct / 100)
-              : fullBudget;
+            // Staff: use server-computed working budget (labor deducted server-side, never revealed)
+            // Fall back to fullBudget while the RPC response is still in-flight
+            const workingBudget = userRole === 'staff'
+              ? (workingBudgetForStaff ?? fullBudget)
+              : (laborPct > 0 ? fullBudget * (1 - laborPct / 100) : fullBudget);
             const remaining = workingBudget - totalRetail;
             const pct = Math.min((totalRetail / workingBudget) * 100, 100);
             const isOver = remaining < 0;
