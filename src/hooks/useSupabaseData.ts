@@ -1100,7 +1100,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           user_id: userId,
           store_name: settings.storeName,
           is_configured: settings.isConfigured
-        });
+        }, { onConflict: 'user_id' });
 
       if (error) throw error;
 
