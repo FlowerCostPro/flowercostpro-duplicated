@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { TrendingUp, DollarSign, Package, Calendar, Award, AlertTriangle } from 'lucide-react';
+import { TrendingUp, DollarSign, Package, Calendar, Award, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
 
 interface ProfitAnalyticsProps {
@@ -10,10 +10,13 @@ const ProfitAnalytics: React.FC<ProfitAnalyticsProps> = ({ orders }) => {
   const analytics = useMemo(() => {
     if (orders.length === 0) return null;
 
-    // Overall metrics
-    const totalRevenue = orders.reduce((sum: number, order: OrderRecord) => sum + order.totalRetail, 0);
+    // Overall metrics — use customerPrice (full revenue) when labor was captured
+    const totalRevenue = orders.reduce((sum: number, order: OrderRecord) =>
+      sum + (order.customerPrice != null ? order.customerPrice : order.totalRetail), 0);
     const totalCosts = orders.reduce((sum: number, order: OrderRecord) => sum + order.totalWholesale, 0);
-    const totalProfit = totalRevenue - totalCosts;
+    const totalLabor = orders.reduce((sum: number, order: OrderRecord) =>
+      sum + (order.laborAmount ?? 0), 0);
+    const totalProfit = orders.reduce((sum: number, order: OrderRecord) => sum + order.profit, 0);
     const avgProfitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     const avgOrderValue = totalRevenue / orders.length;
 
@@ -86,7 +89,7 @@ const ProfitAnalytics: React.FC<ProfitAnalyticsProps> = ({ orders }) => {
           orderCount: 0
         };
 
-        existing.revenue += order.totalRetail;
+        existing.revenue += order.customerPrice != null ? order.customerPrice : order.totalRetail;
         existing.profit += order.profit;
         existing.orderCount += 1;
 
@@ -108,6 +111,7 @@ const ProfitAnalytics: React.FC<ProfitAnalyticsProps> = ({ orders }) => {
     return {
       totalRevenue,
       totalCosts,
+      totalLabor,
       totalProfit,
       avgProfitMargin,
       avgOrderValue,
@@ -173,24 +177,39 @@ const ProfitAnalytics: React.FC<ProfitAnalyticsProps> = ({ orders }) => {
               <TrendingUp className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <div className="text-sm text-blue-600 font-medium">Total Profit</div>
+              <div className="text-sm text-blue-600 font-medium">Net Profit</div>
               <div className="text-2xl font-bold text-blue-700">${analytics.totalProfit.toFixed(2)}</div>
               <div className="text-xs text-blue-600">{analytics.avgProfitMargin.toFixed(1)}% margin</div>
             </div>
           </div>
         </div>
 
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-purple-100 p-2 rounded-full">
-              <Package className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <div className="text-sm text-purple-600 font-medium">Avg Order Value</div>
-              <div className="text-2xl font-bold text-purple-700">${analytics.avgOrderValue.toFixed(2)}</div>
+        {analytics.totalLabor > 0 ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-amber-100 p-2 rounded-full">
+                <DollarSign className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <div className="text-sm text-amber-600 font-medium">Labor Captured</div>
+                <div className="text-2xl font-bold text-amber-700">${analytics.totalLabor.toFixed(2)}</div>
+                <div className="text-xs text-amber-600">{analytics.totalRevenue > 0 ? ((analytics.totalLabor / analytics.totalRevenue) * 100).toFixed(1) : 0}% of revenue</div>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-purple-100 p-2 rounded-full">
+                <Package className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <div className="text-sm text-purple-600 font-medium">Avg Order Value</div>
+                <div className="text-2xl font-bold text-purple-700">${analytics.avgOrderValue.toFixed(2)}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
           <div className="flex items-center gap-3">
@@ -305,7 +324,7 @@ const ProfitAnalytics: React.FC<ProfitAnalyticsProps> = ({ orders }) => {
               ${analytics.bestOrder.profit.toFixed(2)} profit
             </div>
             <div className="text-sm text-gray-500">
-              ${analytics.bestOrder.totalRetail.toFixed(2)} revenue • {analytics.bestOrder.products.length} items
+              ${(analytics.bestOrder.customerPrice ?? analytics.bestOrder.totalRetail).toFixed(2)} revenue • {analytics.bestOrder.products.length} items
             </div>
           </div>
         </div>
@@ -324,7 +343,7 @@ const ProfitAnalytics: React.FC<ProfitAnalyticsProps> = ({ orders }) => {
               ${analytics.worstOrder.profit.toFixed(2)} profit
             </div>
             <div className="text-sm text-gray-500">
-              ${analytics.worstOrder.totalRetail.toFixed(2)} revenue • {analytics.worstOrder.products.length} items
+              ${(analytics.worstOrder.customerPrice ?? analytics.worstOrder.totalRetail).toFixed(2)} revenue • {analytics.worstOrder.products.length} items
             </div>
           </div>
         </div>

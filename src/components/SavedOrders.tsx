@@ -292,20 +292,41 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
 
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h4 className="font-medium text-gray-800 mb-3">Financial Summary</h4>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Wholesale:</span>
-                      <div className="font-medium">${selectedOrder.totalWholesale.toFixed(2)}</div>
+                  {selectedOrder.customerPrice != null && selectedOrder.laborAmount != null && selectedOrder.laborAmount > 0 ? (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Customer Price:</span>
+                        <span className="font-semibold text-gray-800">${selectedOrder.customerPrice.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Labor:</span>
+                        <span className="font-medium text-amber-700">−${selectedOrder.laborAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Product Cost (wholesale):</span>
+                        <span className="font-medium">−${selectedOrder.totalWholesale.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between pt-2 border-t border-gray-200">
+                        <span className="text-gray-700 font-medium">Net Profit:</span>
+                        <span className="font-bold text-green-700">${selectedOrder.profit.toFixed(2)}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-600">Retail:</span>
-                      <div className="font-medium text-green-600">${selectedOrder.totalRetail.toFixed(2)}</div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Wholesale:</span>
+                        <div className="font-medium">${selectedOrder.totalWholesale.toFixed(2)}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Retail:</span>
+                        <div className="font-medium text-green-600">${selectedOrder.totalRetail.toFixed(2)}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Profit:</span>
+                        <div className="font-bold text-green-700">${selectedOrder.profit.toFixed(2)}</div>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-600">Profit:</span>
-                      <div className="font-bold text-green-700">${selectedOrder.profit.toFixed(2)}</div>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 <div>

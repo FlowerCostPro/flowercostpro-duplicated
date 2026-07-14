@@ -113,7 +113,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           stem: Number(data.stem),
           vase: Number(data.vase),
           accessory: Number(data.accessory),
-          other: Number(data.other)
+          other: Number(data.other),
+          laborPercent: data.labor_percent != null ? Number(data.labor_percent) : null
         });
       }
     } catch (error: any) {
@@ -155,7 +156,9 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         photo: order.photo || undefined,
         notes: order.notes || undefined,
         staffName: order.staff_name || undefined,
-        staffId: order.staff_id || undefined
+        staffId: order.staff_id || undefined,
+        customerPrice: order.customer_price != null ? Number(order.customer_price) : null,
+        laborAmount: order.labor_amount != null ? Number(order.labor_amount) : null
       }));
 
       setSavedOrders(orders);
@@ -566,7 +569,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           stem: settings.stem,
           vase: settings.vase,
           accessory: settings.accessory,
-          other: settings.other
+          other: settings.other,
+          labor_percent: settings.laborPercent ?? null
         });
 
       if (error) throw error;
@@ -619,7 +623,9 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           photo: order.photo,
           notes: order.notes,
           staff_name: order.staffName,
-          staff_id: order.staffId
+          staff_id: order.staffId,
+          customer_price: order.customerPrice ?? null,
+          labor_amount: order.laborAmount ?? null
         })
         .select()
         .single();

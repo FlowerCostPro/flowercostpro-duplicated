@@ -13,6 +13,7 @@ export interface MarkupSettings {
   vase: number;
   accessory: number;
   other: number;
+  laborPercent?: number | null;
 }
 
 export interface ProductTemplate {
@@ -37,6 +38,8 @@ export interface OrderRecord {
   notes?: string;
   staffName?: string;
   staffId?: string;
+  customerPrice?: number | null;
+  laborAmount?: number | null;
 }
 
 export interface ArrangementRecipe {

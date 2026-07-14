@@ -429,7 +429,15 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
     const totalWholesale = orderItems.reduce((sum: number, item: OrderItem) => sum + item.totalWholesale, 0);
     const totalRetail = orderItems.reduce((sum: number, item: OrderItem) => sum + item.totalRetail, 0);
-    const profit = totalRetail - totalWholesale;
+
+    // When labor is configured and a customer budget was entered, profit accounts for labor
+    const budgetVal = customerBudget ? parseFloat(customerBudget) : null;
+    const laborPct = markupSettings.laborPercent ?? 0;
+    const laborAmount = (budgetVal && laborPct > 0) ? budgetVal * (laborPct / 100) : null;
+    const customerPrice = budgetVal ?? null;
+    const profit = customerPrice != null && laborAmount != null
+      ? customerPrice - totalWholesale - laborAmount
+      : totalRetail - totalWholesale;
 
     const order: OrderRecord = {
       id: editingOrderId || Date.now().toString(),
@@ -448,7 +456,9 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       photo: photo || undefined,
       notes: notes || undefined,
       staffName: staffName || undefined,
-      staffId: staffId || undefined
+      staffId: staffId || undefined,
+      customerPrice,
+      laborAmount
     };
 
     console.log('Final order object:', order);
@@ -870,11 +880,16 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
           </div>
           {/* Budget Tracker */}
           {customerBudget && parseFloat(customerBudget) > 0 && (() => {
-            const budget = parseFloat(customerBudget);
-            const remaining = budget - totalRetail;
-            const pct = Math.min((totalRetail / budget) * 100, 100);
+            const fullBudget = parseFloat(customerBudget);
+            const laborPct = markupSettings.laborPercent ?? 0;
+            // For staff: silently apply labor deduction so they build to the reduced amount
+            const workingBudget = (userRole === 'staff' && laborPct > 0)
+              ? fullBudget * (1 - laborPct / 100)
+              : fullBudget;
+            const remaining = workingBudget - totalRetail;
+            const pct = Math.min((totalRetail / workingBudget) * 100, 100);
             const isOver = remaining < 0;
-            const isClose = !isOver && remaining / budget < 0.1;
+            const isClose = !isOver && remaining / workingBudget < 0.1;
             const barColor = isOver ? 'bg-red-500' : isClose ? 'bg-amber-400' : 'bg-emerald-500';
             const textColor = isOver ? 'text-red-700' : isClose ? 'text-amber-700' : 'text-emerald-700';
             const bgColor = isOver ? 'bg-red-50 border-red-200' : isClose ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200';
@@ -897,8 +912,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                 </div>
                 <div className="grid grid-cols-3 text-xs text-gray-600 gap-2">
                   <div>
-                    <div className="text-gray-500">Customer Price</div>
-                    <div className="font-semibold text-gray-800">${budget.toFixed(2)}</div>
+                    <div className="text-gray-500">{userRole === 'staff' ? 'Flower Budget' : 'Customer Price'}</div>
+                    <div className="font-semibold text-gray-800">${workingBudget.toFixed(2)}</div>
                   </div>
                   <div>
                     <div className="text-gray-500">Used so far</div>
