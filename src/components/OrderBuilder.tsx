@@ -94,13 +94,14 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   );
 
   const addItemFromTemplate = (template: ProductTemplate, quantity: number = 1) => {
-    const markup = markupSettings[template.type];
-    const retailPrice = template.wholesaleCost * markup;
+    // Use pre-computed retailPrice when available (staff templates from secure RPC)
+    const retailPrice = template.retailPrice ?? (template.wholesaleCost * markupSettings[template.type]);
     const totalWholesale = template.wholesaleCost * quantity;
     const totalRetail = retailPrice * quantity;
 
     const newItem: OrderItem = {
       id: `order-item-${Date.now()}`,
+      templateId: template.id,
       name: template.name,
       wholesaleCost: template.wholesaleCost,
       quantity,
@@ -140,13 +141,14 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       );
 
       if (template) {
-        const markup = markupSettings[ingredient.type];
-        const retailPrice = template.wholesaleCost * markup;
+        // Use pre-computed retailPrice when available (staff templates from secure RPC)
+        const retailPrice = template.retailPrice ?? (template.wholesaleCost * markupSettings[ingredient.type]);
         const totalWholesale = template.wholesaleCost * ingredient.quantity;
         const totalRetail = retailPrice * ingredient.quantity;
 
         const newItem: OrderItem = {
           id: `recipe-item-${Date.now()}-${Math.random()}`,
+          templateId: template.id,
           name: ingredient.name,
           wholesaleCost: template.wholesaleCost,
           quantity: ingredient.quantity,
@@ -445,6 +447,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       date: new Date(),
       products: orderItems.map((item: OrderItem) => ({
         id: item.id,
+        templateId: item.templateId,
         name: item.name,
         wholesaleCost: item.wholesaleCost,
         quantity: item.quantity,

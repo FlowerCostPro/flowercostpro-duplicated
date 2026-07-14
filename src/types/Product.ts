@@ -1,5 +1,6 @@
 export interface Product {
   id: string;
+  templateId?: string;
   name: string;
   wholesaleCost: number;
   quantity: number;
@@ -20,6 +21,7 @@ export interface ProductTemplate {
   id: string;
   name: string;
   wholesaleCost: number;
+  retailPrice?: number;
   type: 'stem' | 'vase' | 'accessory' | 'other';
   lastUsed: Date;
   inventoryCount?: number;

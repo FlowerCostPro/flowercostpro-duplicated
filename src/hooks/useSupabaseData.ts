@@ -59,6 +59,25 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     if (!dataUserId) return;
 
     try {
+      // Staff: use secure RPC — returns retail_price but NOT wholesale_cost
+      if (ownerId) {
+        const { data, error } = await supabase.rpc('get_staff_product_templates');
+        if (error) throw error;
+        const templates: ProductTemplate[] = (data || []).map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          wholesaleCost: 0, // not exposed to staff
+          retailPrice: Number(item.retail_price),
+          type: item.type,
+          lastUsed: new Date(item.last_used),
+          inventoryCount: item.inventory_count !== null ? item.inventory_count : undefined,
+          lowStockThreshold: item.low_stock_threshold !== null ? item.low_stock_threshold : undefined
+        }));
+        setProductTemplates(templates);
+        return;
+      }
+
+      // Owner: full data including wholesale_cost
       const { data, error } = await supabase
         .from('product_templates')
         .select('*')
@@ -611,7 +630,40 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     }
 
     try {
-      // Insert order — use dataUserId (owner's id) so all orders appear under the shop's account
+      // Staff: use secure RPC — wholesale costs are never sent by or returned to the client
+      if (ownerId) {
+        const products = order.products
+          .filter(p => p.templateId)
+          .map(p => ({ template_id: p.templateId, quantity: p.quantity }));
+
+        const { data: rpcData, error: rpcError } = await supabase.rpc('save_staff_order', {
+          p_name: order.name,
+          p_notes: order.notes || null,
+          p_staff_name: order.staffName || null,
+          p_staff_id: order.staffId || null,
+          p_customer_budget: order.customerPrice ?? null,
+          p_products: products
+        });
+
+        if (rpcError) throw rpcError;
+
+        const newOrder: OrderRecord = {
+          ...order,
+          id: rpcData.order_id,
+          date: new Date(rpcData.created_at),
+          totalRetail: Number(rpcData.total_retail),
+          totalWholesale: 0,
+          profit: 0,
+          laborAmount: order.laborAmount
+        };
+
+        setSavedOrders((prev: OrderRecord[]) => [newOrder, ...prev]);
+        // Reload templates to reflect inventory decrements performed by the RPC
+        await loadProductTemplates();
+        return newOrder;
+      }
+
+      // Owner: direct insert with full financial data
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
