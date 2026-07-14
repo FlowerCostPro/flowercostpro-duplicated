@@ -482,6 +482,19 @@ function App() {
     );
   }
 
+  // Wait for accountRole to be resolved before rendering the dashboard.
+  // Without this, staff members briefly see the owner layout (accountRole=null → defaulted to 'owner').
+  if (user && accountRole === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
@@ -522,7 +535,7 @@ function App() {
             onSaveOrder={saveOrder}
             onUpdateOrder={handleUpdateOrder}
             onOrderChange={handleOrderChange}
-            userRole={userRole}
+            userRole={accountRole === 'staff' ? 'staff' : 'owner'}
             posSettings={posSettings}
             initialOrder={editingOrder || undefined}
           />
