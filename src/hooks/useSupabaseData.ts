@@ -61,6 +61,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     try {
       // Staff: use secure RPC — returns retail_price but NOT wholesale_cost
       if (ownerId && ownerId !== userId) {
+        const { data, error } = await supabase.rpc('get_staff_product_templates');
         if (error) throw error;
         const templates: ProductTemplate[] = (data || []).map((item: any) => ({
           id: item.id,
