@@ -709,8 +709,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           date: new Date(rpcData.created_at),
           totalRetail: Number(rpcData.total_retail),
           totalWholesale: 0,
-          profit: 0,
-          laborAmount: order.laborAmount
+          profit: Number(rpcData.profit ?? 0),
+          laborAmount: rpcData.labor_amount != null ? Number(rpcData.labor_amount) : undefined
         };
 
         setSavedOrders((prev: OrderRecord[]) => [newOrder, ...prev]);
