@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
-import { ShoppingCart, Plus, Minus, Search, X, Camera, RefreshCw, Copy } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Search, X, Camera, RefreshCw } from 'lucide-react';
 import { Product, MarkupSettings, ProductTemplate, OrderRecord, ArrangementRecipe, POSSettings } from '../types/Product';
 import { useToast } from './Toast';
 import { supabase } from '../lib/supabase';
-import { buildPOSText } from '../lib/posText';
 
 interface OrderBuilderProps {
   templates: ProductTemplate[];
@@ -12,6 +11,7 @@ interface OrderBuilderProps {
   onSaveOrder: (order: OrderRecord) => Promise<OrderRecord | void> | void;
   onUpdateOrder?: (orderId: string, order: OrderRecord) => Promise<void> | void;
   onOrderChange?: (products: Product[]) => void;
+  onOrderSaved?: (order: OrderRecord) => void;
   userRole?: 'owner' | 'manager' | 'staff';
   posSettings: POSSettings;
   initialOrder?: OrderRecord;
@@ -30,6 +30,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   onSaveOrder,
   onUpdateOrder,
   onOrderChange,
+  onOrderSaved,
   userRole = 'owner',
   posSettings,
   initialOrder
@@ -53,7 +54,6 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   const [showRecipeSuggestions, setShowRecipeSuggestions] = useState(false);
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({});
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
-  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Load initial order data if editing
@@ -333,88 +333,6 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     }
   };
 
-  const handleCopyForPOS = async () => {
-    if (orderItems.length === 0) {
-      showToast('Add items to the order before copying.', 'warning');
-      return;
-    }
-
-    const budgetVal = customerBudget ? parseFloat(customerBudget) : null;
-    const laborPct = markupSettings.laborPercent ?? 0;
-    const laborAmount = (budgetVal && laborPct > 0 && userRole !== 'staff')
-      ? budgetVal * (laborPct / 100)
-      : null;
-
-    const orderRecord: OrderRecord = {
-      id: editingOrderId ?? 'unsaved',
-      name: orderName,
-      date: new Date(),
-      products: orderItems.map(item => ({
-        id: item.id,
-        templateId: item.templateId,
-        name: item.name,
-        wholesaleCost: item.wholesaleCost,
-        quantity: item.quantity,
-        type: item.type,
-        inventoryCount: item.inventoryCount,
-        lowStockThreshold: item.lowStockThreshold,
-      })),
-      totalWholesale,
-      totalRetail,
-      profit,
-      photo: photo || undefined,
-      notes: notes || undefined,
-      staffName: staffName || undefined,
-      staffId: staffId || undefined,
-      customerPrice: budgetVal,
-      laborAmount,
-    };
-
-    setCopyStatus('idle');
-
-    let text: string;
-    try {
-      text = await buildPOSText(orderRecord, userRole);
-    } catch (err) {
-      setCopyStatus('error');
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      showToast(`Could not generate POS text: ${msg}`, 'error');
-      setTimeout(() => setCopyStatus('idle'), 5000);
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopyStatus('copied');
-      showToast('Copied! Paste into your POS notes field.', 'success');
-      setTimeout(() => setCopyStatus('idle'), 3000);
-    } catch {
-      try {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-9999px';
-        textArea.style.opacity = '0';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        const ok = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        if (ok) {
-          setCopyStatus('copied');
-          showToast('Copied! Paste into your POS notes field.', 'success');
-          setTimeout(() => setCopyStatus('idle'), 3000);
-        } else {
-          throw new Error('execCommand failed');
-        }
-      } catch {
-        setCopyStatus('error');
-        showToast('Copy failed — try a different browser or paste manually.', 'error');
-        setTimeout(() => setCopyStatus('idle'), 5000);
-      }
-    }
-  };
-
   const handleSaveOrder = async () => {
     if (!orderName.trim() || orderItems.length === 0) {
       if (!orderName.trim()) {
@@ -485,7 +403,12 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     }
 
     showToast(editingOrderId ? 'Order updated!' : 'Order saved!', 'success');
-    setTimeout(() => clearOrder(), 100);
+
+    if (onOrderSaved && savedOrder) {
+      onOrderSaved(savedOrder);
+    } else {
+      setTimeout(() => clearOrder(), 100);
+    }
   };
 
   const totalWholesale = orderItems.reduce((sum: number, item: OrderItem) => sum + item.totalWholesale, 0);
@@ -1040,13 +963,6 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
           </div>
 
           <div className="flex gap-3 flex-wrap">
-            <button
-              onClick={handleCopyForPOS}
-              className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-md hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
-            >
-              <Copy className="w-4 h-4" />
-              {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Copy failed' : 'Copy for POS'}
-            </button>
             <button
               onClick={handleSaveOrder}
               className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"

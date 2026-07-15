@@ -208,6 +208,7 @@ function App() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [currentOrderProducts, setCurrentOrderProducts] = useState<Product[]>([]);
   const [editingOrder, setEditingOrder] = useState<OrderRecord | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -330,9 +331,11 @@ function App() {
   };
 
   const handleSectionChange = (section: string) => {
-    // Clear editing order when navigating away from create-order
     if (section !== 'create-order') {
       setEditingOrder(null);
+    }
+    if (section !== 'orders') {
+      setSelectedOrderId(null);
     }
     setActiveSection(section);
   };
@@ -400,6 +403,12 @@ function App() {
   const handleEditOrder = (order: OrderRecord) => {
     setEditingOrder(order);
     setActiveSection('create-order');
+  };
+
+  const handleOrderSaved = (order: OrderRecord) => {
+    setEditingOrder(null);
+    setSelectedOrderId(order.id);
+    setActiveSection('orders');
   };
 
   const handleUpdateOrder = async (orderId: string, order: OrderRecord) => {
@@ -544,6 +553,7 @@ function App() {
             recipes={arrangementRecipes}
             markupSettings={markupSettings}
             onSaveOrder={saveOrder}
+            onOrderSaved={handleOrderSaved}
             onUpdateOrder={handleUpdateOrder}
             onOrderChange={handleOrderChange}
             userRole={accountRole === 'staff' ? 'staff' : 'owner'}
@@ -595,6 +605,7 @@ function App() {
             onDeleteOrder={deleteOrder}
             onEditOrder={handleEditOrder}
             userRole={accountRole === 'staff' ? 'staff' : 'owner'}
+            selectedOrderId={selectedOrderId}
           />
         );
       case 'analytics':

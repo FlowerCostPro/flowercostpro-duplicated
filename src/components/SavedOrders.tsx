@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
 import { buildPOSText } from '../lib/posText';
@@ -8,14 +8,24 @@ interface SavedOrdersProps {
   onDeleteOrder: (orderId: string) => void;
   onEditOrder: (order: OrderRecord) => void;
   userRole: 'staff' | 'owner';
+  selectedOrderId?: string | null;
 }
 
-const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEditOrder, userRole }) => {
+const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEditOrder, userRole, selectedOrderId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'profit'>('date');
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const [copyMessage, setCopyMessage] = useState('');
   const [copyStatusMap, setCopyStatusMap] = useState<Record<string, 'idle' | 'copied' | 'error'>>({});
+
+  useEffect(() => {
+    if (selectedOrderId) {
+      const order = orders.find(o => o.id === selectedOrderId);
+      if (order) {
+        setSelectedOrder(order);
+      }
+    }
+  }, [selectedOrderId, orders]);
 
   const showMessage = (msg: string) => {
     if (!msg) return;
