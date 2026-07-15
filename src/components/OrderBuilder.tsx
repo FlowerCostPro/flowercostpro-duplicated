@@ -95,6 +95,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   useEffect(() => {
     if (userRole !== 'staff') return;
     const val = parseFloat(customerBudget);
+    console.log('[BUDGET-DEBUG] useEffect fired. userRole:', userRole, 'customerBudget:', customerBudget, 'parsedVal:', val);
     if (!customerBudget || isNaN(val) || val <= 0) {
       setWorkingBudgetForStaff(null);
       setWorkingBudgetLoading(false);
@@ -105,15 +106,20 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     let cancelled = false;
     setWorkingBudgetLoading(true);
     const timer = setTimeout(async () => {
+      console.log('[BUDGET-DEBUG] Calling get_working_budget_for_staff with p_customer_budget:', val);
       const { data, error } = await supabase.rpc('get_working_budget_for_staff', {
         p_customer_budget: val
       });
+      console.log('[BUDGET-DEBUG] RPC raw response — data:', JSON.stringify(data), 'error:', error);
       if (!cancelled) {
         setWorkingBudgetLoading(false);
         if (error) {
-          console.error('get_working_budget_for_staff RPC error:', error);
+          console.error('[BUDGET-DEBUG] RPC error:', error);
         } else if (data && Array.isArray(data) && data.length > 0) {
+          console.log('[BUDGET-DEBUG] Setting workingBudgetForStaff to:', Number(data[0].working_budget));
           setWorkingBudgetForStaff(Number(data[0].working_budget));
+        } else {
+          console.warn('[BUDGET-DEBUG] data is not a non-empty array:', data);
         }
       }
     }, 400);
