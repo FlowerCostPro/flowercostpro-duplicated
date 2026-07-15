@@ -15,6 +15,7 @@ import ProfitAnalytics from './components/ProfitAnalytics';
 import BusinessInsights from './components/BusinessInsights';
 import StaffTrainingMode from './components/StaffTrainingMode';
 import StaffManagement from './components/StaffManagement';
+import StaffInviteAcceptance from './components/StaffInviteAcceptance';
 import TrialExpiredOverlay from './components/TrialExpiredOverlay';
 import POSConfiguration from './components/POSConfiguration';
 import POSOrderView from './components/POSOrderView';
@@ -440,6 +441,17 @@ function App() {
   }
 
   if (currentView === 'auth') {
+    if (pendingInviteToken) {
+      return (
+        <ErrorBoundary FallbackComponent={ErrorFallback}>
+          <StaffInviteAcceptance
+            token={pendingInviteToken}
+            onAuthSuccess={handleAuthSuccess}
+            onBackToLanding={handleBackToLanding}
+          />
+        </ErrorBoundary>
+      );
+    }
     return (
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <Auth
@@ -447,7 +459,6 @@ function App() {
           isPasswordReset={isPasswordReset}
           onBackToLanding={handleBackToLanding}
           initialMode={authMode}
-          inviteToken={pendingInviteToken ?? undefined}
         />
       </ErrorBoundary>
     );
