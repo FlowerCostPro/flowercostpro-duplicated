@@ -184,7 +184,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
             name: p.name,
             wholesaleCost: 0,
             quantity: p.quantity,
-            type: p.type
+            type: p.type,
+            retailPrice: p.retail_price != null ? Number(p.retail_price) : undefined
           })),
           totalWholesale: 0,
           totalRetail: Number(order.total_retail),
@@ -222,7 +223,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           name: product.name,
           wholesaleCost: Number(product.wholesale_cost),
           quantity: product.quantity,
-          type: product.type
+          type: product.type,
+          retailPrice: product.retail_price != null ? Number(product.retail_price) : undefined
         })),
         totalWholesale: Number(order.total_wholesale),
         totalRetail: Number(order.total_retail),
@@ -762,7 +764,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         name: product.name,
         wholesale_cost: product.wholesaleCost,
         quantity: product.quantity,
-        type: product.type
+        type: product.type,
+        retail_price: product.retailPrice ?? null
       }));
 
       const { error: productsError } = await supabase
@@ -922,7 +925,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           name: product.name,
           wholesale_cost: product.wholesaleCost,
           quantity: product.quantity,
-          type: product.type
+          type: product.type,
+          retail_price: product.retailPrice ?? null
         }));
 
         const { error: productsError } = await supabase

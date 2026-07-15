@@ -7,6 +7,7 @@ export interface Product {
   type: 'stem' | 'vase' | 'accessory' | 'other';
   inventoryCount?: number;
   lowStockThreshold?: number;
+  retailPrice?: number;
 }
 
 export interface MarkupSettings {

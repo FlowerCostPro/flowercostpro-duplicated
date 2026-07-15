@@ -142,6 +142,7 @@ export type Database = {
           name: string
           order_id: string
           quantity: number
+          retail_price: number | null
           type: Database["public"]["Enums"]["product_type"]
           wholesale_cost: number
         }
@@ -150,6 +151,7 @@ export type Database = {
           name: string
           order_id: string
           quantity?: number
+          retail_price?: number | null
           type: Database["public"]["Enums"]["product_type"]
           wholesale_cost: number
         }
@@ -158,6 +160,7 @@ export type Database = {
           name?: string
           order_id?: string
           quantity?: number
+          retail_price?: number | null
           type?: Database["public"]["Enums"]["product_type"]
           wholesale_cost?: number
         }

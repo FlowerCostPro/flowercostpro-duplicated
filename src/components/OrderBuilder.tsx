@@ -373,7 +373,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         name: item.name,
         wholesaleCost: item.wholesaleCost,
         quantity: item.quantity,
-        type: item.type
+        type: item.type,
+        retailPrice: item.retailPrice
       })),
       totalWholesale,
       totalRetail,
