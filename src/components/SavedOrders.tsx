@@ -1,63 +1,75 @@
 import React, { useState } from 'react';
-import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy, Image } from 'lucide-react';
+import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
+import { supabase } from '../lib/supabase';
 
 interface SavedOrdersProps {
   orders: OrderRecord[];
   onDeleteOrder: (orderId: string) => void;
   onEditOrder: (order: OrderRecord) => void;
+  userRole: 'staff' | 'owner';
 }
 
-const buildPOSText = (order: OrderRecord): string =>
-  [
-    order.name,
-    order.staffName ? `Designer: ${order.staffName}` : '',
-    order.date.toLocaleDateString(),
-  ].filter(Boolean).join('\n');
+const buildPOSText = async (order: OrderRecord, userRole: 'staff' | 'owner'): Promise<string> => {
+  const lines: string[] = [];
+  lines.push('='.repeat(50));
+  lines.push(`ARRANGEMENT: ${order.name || '(unnamed)'}`);
+  if (order.staffName) lines.push(`DESIGNER: ${order.staffName}${order.staffId ? ` (ID: ${order.staffId})` : ''}`);
+  lines.push(`DATE: ${order.date.toLocaleDateString()}`);
+  lines.push('='.repeat(50));
+  lines.push('');
 
-const copyRecipeText = async (order: OrderRecord): Promise<string> => {
-  try {
-    await navigator.clipboard.writeText(buildPOSText(order));
-    return 'Copied! Paste into your POS notes field.';
-  } catch {
-    return 'Could not access clipboard. Try again or use a different browser.';
+  if (order.photo) {
+    lines.push('PHOTO: [See attached image]');
+    lines.push('');
   }
+
+  if (order.notes) {
+    lines.push('NOTES:');
+    lines.push(order.notes);
+    lines.push('');
+  }
+
+  lines.push('ITEMS:');
+  lines.push('-'.repeat(50));
+  order.products.forEach((product: any, i: number) => {
+    const retail = product.retailPrice ?? (product.wholesaleCost * 2.5);
+    const lineTotal = retail * product.quantity;
+    lines.push(`${i + 1}. ${product.name} (${product.type})`);
+    lines.push(`   ${product.quantity} x $${retail.toFixed(2)} = $${lineTotal.toFixed(2)}`);
+  });
+  lines.push('-'.repeat(50));
+  lines.push('');
+
+  let laborAmount: number | null = null;
+
+  if (userRole === 'staff') {
+    const { data } = await supabase.rpc('get_order_labor_amount', { p_order_id: order.id });
+    laborAmount = data != null ? Number(data) : null;
+  } else {
+    laborAmount = (order.customerPrice != null && order.laborAmount != null && order.laborAmount > 0)
+      ? order.laborAmount
+      : null;
+  }
+
+  if (laborAmount != null && laborAmount > 0) {
+    lines.push(`Design & labor: $${laborAmount.toFixed(2)}`);
+    lines.push('');
+  }
+
+  const total = order.customerPrice ?? order.totalRetail;
+  lines.push(`TOTAL: $${total.toFixed(2)}`);
+  lines.push('='.repeat(50));
+
+  return lines.join('\n');
 };
 
-const copyWithPhoto = async (order: OrderRecord): Promise<string> => {
-  const text = buildPOSText(order);
-
-  // Mobile: share photo as a file alongside the text
-  if (order.photo && navigator.share) {
-    try {
-      const res = await fetch(order.photo);
-      const blob = await res.blob();
-      const file = new File([blob], `${order.name}.jpg`, { type: blob.type || 'image/jpeg' });
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], text, title: order.name });
-        return '';
-      }
-    } catch {
-      // fall through to clipboard
-    }
-  }
-
-  // Clipboard fallback: plain text only (avoids pasting raw HTML/base64 into POS)
-  try {
-    await navigator.clipboard.writeText(text);
-    return order.photo
-      ? 'Text copied. On this device, save the photo separately from the order view.'
-      : 'Order details copied!';
-  } catch {
-    return 'Could not copy. Try a different browser.';
-  }
-};
-
-const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEditOrder }) => {
+const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEditOrder, userRole }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'profit'>('date');
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const [copyMessage, setCopyMessage] = useState('');
+  const [copyStatusMap, setCopyStatusMap] = useState<Record<string, 'idle' | 'copied' | 'error'>>({});
 
   const showMessage = (msg: string) => {
     if (!msg) return;
@@ -66,11 +78,40 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
   };
 
   const handleCopy = async (order: OrderRecord) => {
-    showMessage(await copyRecipeText(order));
-  };
-
-  const handleCopyWithPhoto = async (order: OrderRecord) => {
-    showMessage(await copyWithPhoto(order));
+    const prev = copyStatusMap[order.id] ?? 'idle';
+    setCopyStatusMap(prev => ({ ...prev, [order.id]: 'idle' }));
+    try {
+      const text = await buildPOSText(order, userRole);
+      await navigator.clipboard.writeText(text);
+      setCopyStatusMap(prev => ({ ...prev, [order.id]: 'copied' }));
+      showMessage('Copied! Paste into your POS notes field.');
+      setTimeout(() => setCopyStatusMap(prev => ({ ...prev, [order.id]: 'idle' })), 3000);
+    } catch {
+      try {
+        const text = await buildPOSText(order, userRole);
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        if (ok) {
+          setCopyStatusMap(prev => ({ ...prev, [order.id]: 'copied' }));
+          showMessage('Copied! Paste into your POS notes field.');
+          setTimeout(() => setCopyStatusMap(prev => ({ ...prev, [order.id]: 'idle' })), 3000);
+        } else {
+          throw new Error('execCommand failed');
+        }
+      } catch {
+        setCopyStatusMap(prev => ({ ...prev, [order.id]: 'error' }));
+        showMessage('Copy failed — try a different browser or paste manually.');
+        setTimeout(() => setCopyStatusMap(prev => ({ ...prev, [order.id]: 'idle' })), 5000);
+      }
+    }
   };
 
   if (orders.length === 0) {
@@ -89,7 +130,7 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
   }
 
   const filteredAndSortedOrders = [...orders]
-    .filter(order => 
+    .filter(order =>
       order.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
@@ -115,7 +156,11 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
       </div>
 
       {copyMessage && (
-        <div className="mb-4 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-sm">
+        <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${
+          copyMessage.includes('failed')
+            ? 'bg-red-50 border border-red-200 text-red-800'
+            : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+        }`}>
           {copyMessage}
         </div>
       )}
@@ -132,7 +177,7 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
             placeholder="Search orders..."
           />
         </div>
-        
+
         <div className="relative">
           <SortAsc className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
           <select
@@ -148,76 +193,79 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredAndSortedOrders.map((order) => (
-          <div key={order.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start mb-3">
-              <h3 className="font-medium text-gray-800 text-sm line-clamp-2">{order.name}</h3>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => setSelectedOrder(order)}
-                  className="text-gray-400 hover:text-teal-600 transition-colors"
-                  title="View details"
-                >
-                  <Eye className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleCopy(order)}
-                  className="text-gray-400 hover:text-emerald-600 transition-colors"
-                  title="Copy recipe text for POS"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleCopyWithPhoto(order)}
-                  className="text-gray-400 hover:text-blue-600 transition-colors"
-                  title={order.photo ? 'Copy details + photo for POS notes' : 'Copy order details'}
-                >
-                  <Image className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onEditOrder(order)}
-                  className="text-gray-400 hover:text-blue-600 transition-colors"
-                  title="Edit order"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onDeleteOrder(order.id)}
-                  className="text-gray-400 hover:text-red-600 transition-colors"
-                  title="Delete order"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+        {filteredAndSortedOrders.map((order) => {
+          const status = copyStatusMap[order.id] ?? 'idle';
+          return (
+            <div key={order.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-3">
+                <h3 className="font-medium text-gray-800 text-sm line-clamp-2">{order.name}</h3>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setSelectedOrder(order)}
+                    className="text-gray-400 hover:text-teal-600 transition-colors"
+                    title="View details"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => onEditOrder(order)}
+                    className="text-gray-400 hover:text-blue-600 transition-colors"
+                    title="Edit order"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => onDeleteOrder(order.id)}
+                    className="text-gray-400 hover:text-red-600 transition-colors"
+                    title="Delete order"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
+
+              {order.photo && (
+                <div className="mb-3">
+                  <img
+                    src={order.photo}
+                    alt={order.name}
+                    className="w-full h-24 object-cover rounded-md"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Calendar className="w-3 h-3" />
+                  <span>{order.date.toLocaleDateString()}</span>
+                </div>
+
+                <div className="flex items-center gap-2 text-gray-600">
+                  <DollarSign className="w-3 h-3" />
+                  <span>Profit: ${order.profit.toFixed(2)}</span>
+                </div>
+
+                <div className="text-xs text-gray-500">
+                  {order.products.length} items • ${(order.customerPrice ?? order.totalRetail).toFixed(2)} total
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleCopy(order)}
+                className={`mt-3 w-full py-2 px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                  status === 'copied'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : status === 'error'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                }`}
+              >
+                <Copy className="w-3.5 h-3.5" />
+                {status === 'copied' ? 'Copied!' : status === 'error' ? 'Copy failed' : 'Copy for POS'}
+              </button>
             </div>
-
-            {order.photo && (
-              <div className="mb-3">
-                <img
-                  src={order.photo}
-                  alt={order.name}
-                  className="w-full h-24 object-cover rounded-md"
-                />
-              </div>
-            )}
-
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2 text-gray-600">
-                <Calendar className="w-3 h-3" />
-                <span>{order.date.toLocaleDateString()}</span>
-              </div>
-              
-              <div className="flex items-center gap-2 text-gray-600">
-                <DollarSign className="w-3 h-3" />
-                <span>Profit: ${order.profit.toFixed(2)}</span>
-              </div>
-
-              <div className="text-xs text-gray-500">
-                {order.products.length} items • ${order.totalRetail.toFixed(2)} retail
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Order Details Modal */}
@@ -230,17 +278,16 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleCopy(selectedOrder)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-md text-sm font-medium transition-colors"
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      (copyStatusMap[selectedOrder.id] ?? 'idle') === 'copied'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : (copyStatusMap[selectedOrder.id] ?? 'idle') === 'error'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+                    }`}
                   >
                     <Copy className="w-3.5 h-3.5" />
-                    Copy Recipe
-                  </button>
-                  <button
-                    onClick={() => handleCopyWithPhoto(selectedOrder)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-sm font-medium transition-colors"
-                  >
-                    <Image className="w-3.5 h-3.5" />
-                    {selectedOrder.photo ? 'Copy + Photo' : 'Copy Details'}
+                    {(copyStatusMap[selectedOrder.id] ?? 'idle') === 'copied' ? 'Copied!' : 'Copy for POS'}
                   </button>
                   <button
                     onClick={() => setSelectedOrder(null)}

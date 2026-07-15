@@ -1049,18 +1049,18 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
           <div className="flex gap-3 flex-wrap">
             <button
+              onClick={handleCopyForPOS}
+              className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-md hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+            >
+              <Copy className="w-4 h-4" />
+              {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Copy failed' : 'Copy for POS'}
+            </button>
+            <button
               onClick={handleSaveOrder}
               className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
             >
               <ShoppingCart className="w-4 h-4" />
               {editingOrderId ? 'Update Order' : 'Save Order'}
-            </button>
-            <button
-              onClick={handleCopyForPOS}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors flex items-center gap-2 whitespace-nowrap"
-            >
-              <Copy className="w-4 h-4" />
-              {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Copy failed' : 'Copy for POS'}
             </button>
             <button
               onClick={clearOrder}

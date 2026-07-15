@@ -594,6 +594,7 @@ function App() {
             orders={savedOrders}
             onDeleteOrder={deleteOrder}
             onEditOrder={handleEditOrder}
+            userRole={accountRole === 'staff' ? 'staff' : 'owner'}
           />
         );
       case 'analytics':
