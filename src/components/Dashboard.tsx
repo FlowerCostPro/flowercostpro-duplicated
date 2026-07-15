@@ -39,6 +39,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     { id: 'overview', label: 'Overview', icon: LayoutDashboard, ownerOnly: false },
     { id: 'create-order', label: 'Create Order', icon: ShoppingCart, ownerOnly: false },
     { id: 'recipes', label: 'Arrangement Recipes', icon: BookOpen, ownerOnly: false },
+    { id: 'my-orders', label: 'My Orders', icon: ShoppingCart, ownerOnly: false },
     { id: 'orders', label: 'Order History', icon: ShoppingCart, ownerOnly: true },
     { id: 'products', label: 'Product Library', icon: Package, ownerOnly: true },
     { id: 'low-stock', label: 'Low Stock Alert', icon: AlertTriangle, ownerOnly: true },

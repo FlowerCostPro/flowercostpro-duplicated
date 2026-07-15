@@ -10,6 +10,7 @@ import ProductLibrary from './components/ProductLibrary';
 import ProductForm from './components/ProductForm';
 import MarkupSettingsComponent from './components/MarkupSettings';
 import SavedOrders from './components/SavedOrders';
+import StaffSavedOrders from './components/StaffSavedOrders';
 import ArrangementRecipes from './components/ArrangementRecipes';
 import ProfitAnalytics from './components/ProfitAnalytics';
 import BusinessInsights from './components/BusinessInsights';
@@ -429,7 +430,7 @@ function App() {
   // Sections that staff are completely forbidden from accessing
   const OWNER_ONLY_SECTIONS = new Set([
     'settings', 'analytics', 'insights', 'products', 'low-stock',
-    'staff-training', 'team',
+    'orders', 'staff-training', 'team',
   ]);
 
   const isStaff = accountRole === 'staff';
@@ -605,6 +606,13 @@ function App() {
             onDeleteOrder={deleteOrder}
             onEditOrder={handleEditOrder}
             userRole={accountRole === 'staff' ? 'staff' : 'owner'}
+            selectedOrderId={selectedOrderId}
+          />
+        );
+      case 'my-orders':
+        return (
+          <StaffSavedOrders
+            orders={savedOrders}
             selectedOrderId={selectedOrderId}
           />
         );
