@@ -157,13 +157,13 @@ const ProductForm: React.FC<ProductFormProps> = ({ onAddProduct, existingTemplat
 
           {existingProduct && (
             <div className="col-span-2">
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                <p className="text-sm text-blue-800">
-                  <strong>This product already exists!</strong>
-                  <br />
-                  Current inventory: <strong>{existingProduct.inventoryCount || 0}</strong> units
-                  <br />
-                  Adding <strong>{formData.quantity}</strong> units will result in <strong>{(existingProduct.inventoryCount || 0) + parseInt(formData.quantity || '0')}</strong> total units
+              <div className="bg-amber-50 border border-amber-300 rounded-md p-3">
+                <p className="text-sm text-amber-800 font-medium">
+                  {existingProduct.name} already exists — did you mean to restock it?
+                </p>
+                <p className="text-sm text-amber-700 mt-1">
+                  Current inventory: <strong>{existingProduct.inventoryCount || 0}</strong> units.
+                  Adding <strong>{formData.quantity}</strong> units will result in <strong>{(existingProduct.inventoryCount || 0) + parseInt(formData.quantity || '0')}</strong> total units.
                 </p>
               </div>
             </div>

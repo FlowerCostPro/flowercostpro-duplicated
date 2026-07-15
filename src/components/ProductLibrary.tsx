@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Library, CreditCard as Edit2, Trash2, Clock, Search, ListFilter as Filter } from 'lucide-react';
+import { Library, CreditCard as Edit2, Trash2, Clock, Search, ListFilter as Filter, RefreshCw } from 'lucide-react';
 import { ProductTemplate, MarkupSettings } from '../types/Product';
 import { useToast } from './Toast';
 
@@ -27,6 +27,20 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
     inventoryCount: string;
     lowStockThreshold: string;
   }>({ name: '', wholesaleCost: '', type: 'stem', inventoryCount: '', lowStockThreshold: '' });
+  const [restockAmounts, setRestockAmounts] = useState<Record<string, string>>({});
+
+  const handleRestock = async (template: ProductTemplate) => {
+    const amount = parseInt(restockAmounts[template.id] ?? '');
+    if (isNaN(amount) || amount <= 0) return;
+    const newCount = (template.inventoryCount ?? 0) + amount;
+    setRestockAmounts(prev => { const n = { ...prev }; delete n[template.id]; return n; });
+    try {
+      await onUpdateTemplate(template.id, { inventoryCount: newCount });
+      showToast(`Restocked ${template.name} — now ${newCount} in stock`, 'success');
+    } catch {
+      showToast('Failed to update inventory. Please try again.', 'error');
+    }
+  };
 
   const filteredAndSortedTemplates = [...templates]
     .filter(template => {
@@ -280,9 +294,30 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
                   <span>Last used: {template.lastUsed.toLocaleDateString()}</span>
                 </div>
                 
-                <div className="text-center text-xs text-gray-500 bg-gray-50 py-2 rounded">
-                  Use "Create New Order" to add this product
-                </div>
+                {template.inventoryCount !== undefined ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      value={restockAmounts[template.id] ?? ''}
+                      onChange={e => setRestockAmounts(prev => ({ ...prev, [template.id]: e.target.value }))}
+                      placeholder="Add qty"
+                      className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    <button
+                      onClick={() => handleRestock(template)}
+                      disabled={restockAmounts[template.id] === '' || !restockAmounts[template.id]}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Restock
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center text-xs text-gray-500 bg-gray-50 py-2 rounded">
+                    Use "Create New Order" to add this product
+                  </div>
+                )}
               </>
             )}
           </div>
