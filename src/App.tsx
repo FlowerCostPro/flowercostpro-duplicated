@@ -429,7 +429,7 @@ function App() {
   // Sections that staff are completely forbidden from accessing
   const OWNER_ONLY_SECTIONS = new Set([
     'settings', 'analytics', 'insights', 'products', 'low-stock',
-    'orders', 'staff-training', 'team',
+    'staff-training', 'team',
   ]);
 
   const isStaff = accountRole === 'staff';
