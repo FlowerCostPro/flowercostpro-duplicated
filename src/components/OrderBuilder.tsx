@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback, ChangeEvent } from 'react';
-import { ShoppingCart, Plus, Minus, Search, X, Camera, RefreshCw, Copy, Image } from 'lucide-react';
+import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { ShoppingCart, Plus, Minus, Search, X, Camera, RefreshCw, Copy } from 'lucide-react';
 import { Product, MarkupSettings, ProductTemplate, OrderRecord, ArrangementRecipe, POSSettings } from '../types/Product';
-import POSIntegration from './POSIntegration';
 import { useToast } from './Toast';
 import { supabase } from '../lib/supabase';
 
@@ -52,9 +51,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showRecipeSuggestions, setShowRecipeSuggestions] = useState(false);
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>({});
-  const [savedOrderForPOS, setSavedOrderForPOS] = useState<OrderRecord | null>(null);
-  const [showPOSIntegration, setShowPOSIntegration] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Load initial order data if editing
@@ -334,121 +332,94 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     }
   };
 
+  const buildPOSText = async (): Promise<string> => {
+    const lines: string[] = [];
+    lines.push('='.repeat(50));
+    lines.push(`ARRANGEMENT: ${orderName || '(unnamed)'}`);
+    if (staffName) lines.push(`DESIGNER: ${staffName}${staffId ? ` (ID: ${staffId})` : ''}`);
+    lines.push(`DATE: ${new Date().toLocaleDateString()}`);
+    lines.push('='.repeat(50));
+    lines.push('');
+
+    if (photo) {
+      lines.push('PHOTO: [See attached image]');
+      lines.push('');
+    }
+
+    if (notes) {
+      lines.push('NOTES:');
+      lines.push(notes);
+      lines.push('');
+    }
+
+    lines.push('ITEMS:');
+    lines.push('-'.repeat(50));
+    orderItems.forEach((item, i) => {
+      lines.push(`${i + 1}. ${item.name} (${item.type})`);
+      lines.push(`   ${item.quantity} x ${item.retailPrice.toFixed(2)} = ${item.totalRetail.toFixed(2)}`);
+    });
+    lines.push('-'.repeat(50));
+    lines.push('');
+
+    const budgetVal = customerBudget ? parseFloat(customerBudget) : null;
+    let laborAmount: number | null = null;
+
+    if (userRole === 'staff' && editingOrderId) {
+      const { data } = await supabase.rpc('get_order_labor_amount', { p_order_id: editingOrderId });
+      laborAmount = data != null ? Number(data) : null;
+    } else if (userRole !== 'staff') {
+      const laborPct = markupSettings.laborPercent ?? 0;
+      laborAmount = (budgetVal && laborPct > 0) ? budgetVal * (laborPct / 100) : null;
+    }
+
+    if (laborAmount != null && laborAmount > 0) {
+      lines.push(`Design & labor: ${laborAmount.toFixed(2)}`);
+    }
+
+    const total = budgetVal ?? totalRetail;
+    lines.push(`TOTAL: ${total.toFixed(2)}`);
+    lines.push('='.repeat(50));
+
+    return lines.join('\n');
+  };
+
   const handleCopyForPOS = async () => {
     if (orderItems.length === 0) {
       showToast('Add items to the order before copying.', 'warning');
       return;
     }
-    const lines: string[] = [];
-    lines.push('='.repeat(50));
-    lines.push(`ARRANGEMENT: ${orderName || '(unnamed)'}`);
-    if (staffName) lines.push(`STAFF: ${staffName}${staffId ? ` (ID: ${staffId})` : ''}`);
-    lines.push('='.repeat(50));
-    lines.push('');
-    if (photo) { lines.push('PHOTO: [See attached image]'); lines.push(''); }
-    if (notes) { lines.push('NOTES:'); lines.push(notes); lines.push(''); }
-    lines.push('RECIPE / INGREDIENTS:');
-    lines.push('-'.repeat(50));
-    orderItems.forEach((item, i) => {
-      lines.push(`${i + 1}. ${item.quantity}x ${item.name} (${item.type})`);
-    });
-    lines.push('');
-    lines.push('PRICING:');
-    lines.push('-'.repeat(50));
-    orderItems.forEach((item, i) => {
-      lines.push(`${i + 1}. ${item.name}: ${item.quantity} x $${item.retailPrice.toFixed(2)} = $${item.totalRetail.toFixed(2)}`);
-    });
-    lines.push('');
-    lines.push(`TOTAL: $${totalRetail.toFixed(2)}`);
-    lines.push('='.repeat(50));
+    setCopyStatus('idle');
     try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      showToast('Recipe text copied! Paste into your POS notes field.', 'success');
+      const text = await buildPOSText();
+      await navigator.clipboard.writeText(text);
+      setCopyStatus('copied');
+      showToast('Copied! Paste into your POS notes field.', 'success');
+      setTimeout(() => setCopyStatus('idle'), 3000);
     } catch {
-      showToast('Could not access clipboard. Try again or use a different browser.', 'error');
-    }
-  };
-
-  const handleCopyWithPhoto = async () => {
-    if (orderItems.length === 0) {
-      showToast('Add items to the order before copying.', 'warning');
-      return;
-    }
-
-    // Plain text fallback
-    const lines: string[] = [];
-    lines.push(`ARRANGEMENT: ${orderName || '(unnamed)'}`);
-    if (staffName) lines.push(`STAFF: ${staffName}${staffId ? ` (ID: ${staffId})` : ''}`);
-    lines.push(`DATE: ${new Date().toLocaleDateString()}`);
-    lines.push('');
-    if (notes) { lines.push('NOTES:'); lines.push(notes); lines.push(''); }
-    lines.push('RECIPE / INGREDIENTS:');
-    orderItems.forEach((item, i) => {
-      lines.push(`${i + 1}. ${item.quantity}x ${item.name} (${item.type})`);
-    });
-    lines.push('');
-    lines.push('PRICING:');
-    orderItems.forEach((item, i) => {
-      lines.push(`${i + 1}. ${item.name}: ${item.quantity} x $${item.retailPrice.toFixed(2)} = $${item.totalRetail.toFixed(2)}`);
-    });
-    lines.push('');
-    lines.push(`TOTAL: $${totalRetail.toFixed(2)}`);
-    const plainText = lines.join('\n');
-
-    // Rich HTML with embedded photo
-    const itemRows = orderItems.map((item, i) =>
-      `<tr><td style="padding:4px 8px">${i + 1}. ${item.name} <span style="color:#666;font-size:12px">(${item.type})</span></td><td style="padding:4px 8px;text-align:center">${item.quantity}x</td><td style="padding:4px 8px;text-align:right">$${item.retailPrice.toFixed(2)}</td><td style="padding:4px 8px;text-align:right;font-weight:600">$${item.totalRetail.toFixed(2)}</td></tr>`
-    ).join('');
-    const html = `<div style="font-family:sans-serif;max-width:600px;color:#1a1a1a">
-      <h2 style="margin:0 0 6px;font-size:20px">${orderName || '(unnamed)'}</h2>
-      ${staffName ? `<p style="margin:0 0 4px;color:#666;font-size:14px">Staff: ${staffName}${staffId ? ` (ID: ${staffId})` : ''}</p>` : ''}
-      <p style="margin:0 0 12px;color:#999;font-size:13px">${new Date().toLocaleDateString()}</p>
-      ${notes ? `<p style="margin:0 0 12px;padding:8px 12px;background:#f9f9f9;border-left:3px solid #ccc;font-style:italic">${notes}</p>` : ''}
-      ${photo ? `<img src="${photo}" style="max-width:100%;width:400px;border-radius:8px;margin-bottom:16px;display:block" />` : ''}
-      <table style="border-collapse:collapse;width:100%;margin-bottom:12px;font-size:14px">
-        <thead><tr style="background:#f0f4f8"><th style="padding:6px 8px;text-align:left">Item</th><th style="padding:6px 8px">Qty</th><th style="padding:6px 8px;text-align:right">Each</th><th style="padding:6px 8px;text-align:right">Total</th></tr></thead>
-        <tbody>${itemRows}</tbody>
-      </table>
-      <p style="font-size:16px;font-weight:bold;border-top:2px solid #e0e0e0;padding-top:8px">Total: $${totalRetail.toFixed(2)}</p>
-    </div>`;
-
-    // Desktop: write rich HTML + plain text to clipboard
-    if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
       try {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'text/html': new Blob([html], { type: 'text/html' }),
-            'text/plain': new Blob([plainText], { type: 'text/plain' }),
-          })
-        ]);
-        showToast(photo ? 'Copied! Paste into your POS notes to include photo + details.' : 'Order details copied!', 'success');
-        return;
-      } catch {
-        // fall through
-      }
-    }
-
-    // Mobile: Web Share with image + text
-    if (photo && navigator.share) {
-      try {
-        const res = await fetch(photo);
-        const blob = await res.blob();
-        const file = new File([blob], `${orderName || 'arrangement'}.jpg`, { type: blob.type || 'image/jpeg' });
-        if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], text: plainText, title: orderName || 'Arrangement' });
-          return;
+        const text = await buildPOSText();
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        if (ok) {
+          setCopyStatus('copied');
+          showToast('Copied! Paste into your POS notes field.', 'success');
+          setTimeout(() => setCopyStatus('idle'), 3000);
+        } else {
+          throw new Error('execCommand failed');
         }
       } catch {
-        // fall through
+        setCopyStatus('error');
+        showToast('Copy failed — try a different browser or paste manually.', 'error');
+        setTimeout(() => setCopyStatus('idle'), 5000);
       }
-    }
-
-    // Final fallback: text only
-    try {
-      await navigator.clipboard.writeText(plainText);
-      showToast('Copied as text (photo could not be included).', 'success');
-    } catch {
-      showToast('Could not copy. Try a different browser.', 'error');
     }
   };
 
@@ -521,22 +492,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       return;
     }
 
-    // Handle POS integration based on configuration
-    if (userRole === 'staff') {
-      console.log('Staff mode - checking store configuration:', posSettings.isConfigured, posSettings.storeName);
-      if (posSettings.isConfigured && posSettings.storeName) {
-        setSavedOrderForPOS(savedOrder ?? order);
-        setShowPOSIntegration(true);
-        // clearOrder is called when the POS modal closes
-      } else {
-        showToast('Order saved! Ask your manager to set up store info in Settings for POS copy-paste.', 'success');
-        setTimeout(() => clearOrder(), 100);
-      }
-    } else {
-      setTimeout(() => {
-        clearOrder();
-      }, 100);
-    }
+    showToast(editingOrderId ? 'Order updated!' : 'Order saved!', 'success');
+    setTimeout(() => clearOrder(), 100);
   };
 
   const totalWholesale = orderItems.reduce((sum: number, item: OrderItem) => sum + item.totalWholesale, 0);
@@ -648,19 +605,6 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
             </div>
           </div>
         </div>
-      )}
-
-      {/* POS Integration Modal */}
-      {showPOSIntegration && savedOrderForPOS && (
-        <POSIntegration
-          order={savedOrderForPOS}
-          posSettings={posSettings}
-          onClose={() => {
-            setShowPOSIntegration(false);
-            setSavedOrderForPOS(null);
-            clearOrder();
-          }}
-        />
       )}
 
       {/* Product Search */}
@@ -1109,28 +1053,14 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
               className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
             >
               <ShoppingCart className="w-4 h-4" />
-              {editingOrderId
-                ? 'Update Order'
-                : userRole === 'staff'
-                  ? 'Save & Copy for POS'
-                  : 'Save Order'
-              }
+              {editingOrderId ? 'Update Order' : 'Save Order'}
             </button>
             <button
               onClick={handleCopyForPOS}
-              title="Copy recipe text for POS notes"
-              className="px-4 py-2 border border-emerald-500 text-emerald-700 rounded-md hover:bg-emerald-50 transition-colors flex items-center gap-2 whitespace-nowrap"
+              className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors flex items-center gap-2 whitespace-nowrap"
             >
               <Copy className="w-4 h-4" />
-              Copy Recipe
-            </button>
-            <button
-              onClick={handleCopyWithPhoto}
-              title={photo ? 'Copy details + photo for POS notes' : 'Copy order details'}
-              className="px-4 py-2 border border-blue-400 text-blue-700 rounded-md hover:bg-blue-50 transition-colors flex items-center gap-2 whitespace-nowrap"
-            >
-              <Image className="w-4 h-4" />
-              {photo ? 'Copy + Photo' : 'Copy Details'}
+              {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Copy failed' : 'Copy for POS'}
             </button>
             <button
               onClick={clearOrder}
