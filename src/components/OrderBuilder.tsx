@@ -3,6 +3,7 @@ import { ShoppingCart, Plus, Minus, Search, X, Camera, RefreshCw, Copy } from 'l
 import { Product, MarkupSettings, ProductTemplate, OrderRecord, ArrangementRecipe, POSSettings } from '../types/Product';
 import { useToast } from './Toast';
 import { supabase } from '../lib/supabase';
+import { buildPOSText } from '../lib/posText';
 
 interface OrderBuilderProps {
   templates: ProductTemplate[];
@@ -332,72 +333,53 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     }
   };
 
-  const buildPOSText = async (): Promise<string> => {
-    const lines: string[] = [];
-    lines.push('='.repeat(50));
-    lines.push(`ARRANGEMENT: ${orderName || '(unnamed)'}`);
-    if (staffName) lines.push(`DESIGNER: ${staffName}${staffId ? ` (ID: ${staffId})` : ''}`);
-    lines.push(`DATE: ${new Date().toLocaleDateString()}`);
-    lines.push('='.repeat(50));
-    lines.push('');
-
-    if (photo) {
-      lines.push('PHOTO: [See attached image]');
-      lines.push('');
-    }
-
-    if (notes) {
-      lines.push('NOTES:');
-      lines.push(notes);
-      lines.push('');
-    }
-
-    lines.push('ITEMS:');
-    lines.push('-'.repeat(50));
-    orderItems.forEach((item, i) => {
-      lines.push(`${i + 1}. ${item.name} (${item.type})`);
-      lines.push(`   ${item.quantity} x ${item.retailPrice.toFixed(2)} = ${item.totalRetail.toFixed(2)}`);
-    });
-    lines.push('-'.repeat(50));
-    lines.push('');
-
-    const budgetVal = customerBudget ? parseFloat(customerBudget) : null;
-    let laborAmount: number | null = null;
-
-    if (userRole === 'staff' && editingOrderId) {
-      const { data } = await supabase.rpc('get_order_labor_amount', { p_order_id: editingOrderId });
-      laborAmount = data != null ? Number(data) : null;
-    } else if (userRole !== 'staff') {
-      const laborPct = markupSettings.laborPercent ?? 0;
-      laborAmount = (budgetVal && laborPct > 0) ? budgetVal * (laborPct / 100) : null;
-    }
-
-    if (laborAmount != null && laborAmount > 0) {
-      lines.push(`Design & labor: ${laborAmount.toFixed(2)}`);
-    }
-
-    const total = budgetVal ?? totalRetail;
-    lines.push(`TOTAL: ${total.toFixed(2)}`);
-    lines.push('='.repeat(50));
-
-    return lines.join('\n');
-  };
-
   const handleCopyForPOS = async () => {
     if (orderItems.length === 0) {
       showToast('Add items to the order before copying.', 'warning');
       return;
     }
+
+    const budgetVal = customerBudget ? parseFloat(customerBudget) : null;
+    const laborPct = markupSettings.laborPercent ?? 0;
+    const laborAmount = (budgetVal && laborPct > 0 && userRole !== 'staff')
+      ? budgetVal * (laborPct / 100)
+      : null;
+
+    const orderRecord: OrderRecord = {
+      id: editingOrderId ?? 'unsaved',
+      name: orderName,
+      date: new Date(),
+      products: orderItems.map(item => ({
+        id: item.id,
+        templateId: item.templateId,
+        name: item.name,
+        wholesaleCost: item.wholesaleCost,
+        quantity: item.quantity,
+        type: item.type,
+        inventoryCount: item.inventoryCount,
+        lowStockThreshold: item.lowStockThreshold,
+      })),
+      totalWholesale,
+      totalRetail,
+      profit,
+      photo: photo || undefined,
+      notes: notes || undefined,
+      staffName: staffName || undefined,
+      staffId: staffId || undefined,
+      customerPrice: budgetVal,
+      laborAmount,
+    };
+
     setCopyStatus('idle');
     try {
-      const text = await buildPOSText();
+      const text = await buildPOSText(orderRecord, userRole);
       await navigator.clipboard.writeText(text);
       setCopyStatus('copied');
       showToast('Copied! Paste into your POS notes field.', 'success');
       setTimeout(() => setCopyStatus('idle'), 3000);
     } catch {
       try {
-        const text = await buildPOSText();
+        const text = await buildPOSText(orderRecord, userRole);
         const textArea = document.createElement('textarea');
         textArea.value = text;
         textArea.style.position = 'fixed';
