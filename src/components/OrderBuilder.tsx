@@ -371,15 +371,25 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     };
 
     setCopyStatus('idle');
+
+    let text: string;
     try {
-      const text = await buildPOSText(orderRecord, userRole);
+      text = await buildPOSText(orderRecord, userRole);
+    } catch (err) {
+      setCopyStatus('error');
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      showToast(`Could not generate POS text: ${msg}`, 'error');
+      setTimeout(() => setCopyStatus('idle'), 5000);
+      return;
+    }
+
+    try {
       await navigator.clipboard.writeText(text);
       setCopyStatus('copied');
       showToast('Copied! Paste into your POS notes field.', 'success');
       setTimeout(() => setCopyStatus('idle'), 3000);
     } catch {
       try {
-        const text = await buildPOSText(orderRecord, userRole);
         const textArea = document.createElement('textarea');
         textArea.value = text;
         textArea.style.position = 'fixed';

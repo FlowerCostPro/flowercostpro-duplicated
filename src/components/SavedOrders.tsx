@@ -24,17 +24,26 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
   };
 
   const handleCopy = async (order: OrderRecord) => {
-    const prev = copyStatusMap[order.id] ?? 'idle';
     setCopyStatusMap(prev => ({ ...prev, [order.id]: 'idle' }));
+
+    let text: string;
     try {
-      const text = await buildPOSText(order, userRole);
+      text = await buildPOSText(order, userRole);
+    } catch (err) {
+      setCopyStatusMap(prev => ({ ...prev, [order.id]: 'error' }));
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      showMessage(`Could not generate POS text: ${msg}`);
+      setTimeout(() => setCopyStatusMap(prev => ({ ...prev, [order.id]: 'idle' })), 5000);
+      return;
+    }
+
+    try {
       await navigator.clipboard.writeText(text);
       setCopyStatusMap(prev => ({ ...prev, [order.id]: 'copied' }));
       showMessage('Copied! Paste into your POS notes field.');
       setTimeout(() => setCopyStatusMap(prev => ({ ...prev, [order.id]: 'idle' })), 3000);
     } catch {
       try {
-        const text = await buildPOSText(order, userRole);
         const textArea = document.createElement('textarea');
         textArea.value = text;
         textArea.style.position = 'fixed';
