@@ -335,7 +335,7 @@ function App() {
     if (section !== 'create-order') {
       setEditingOrder(null);
     }
-    if (section !== 'orders') {
+    if (section !== 'orders' && section !== 'my-orders') {
       setSelectedOrderId(null);
     }
     setActiveSection(section);
@@ -409,7 +409,7 @@ function App() {
   const handleOrderSaved = (order: OrderRecord) => {
     setEditingOrder(null);
     setSelectedOrderId(order.id);
-    setActiveSection('orders');
+    setActiveSection(accountRole === 'staff' ? 'my-orders' : 'orders');
   };
 
   const handleUpdateOrder = async (orderId: string, order: OrderRecord) => {
