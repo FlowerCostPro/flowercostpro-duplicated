@@ -290,11 +290,8 @@ function App() {
     if (!user?.id) return;
     const userId = user.id;
     supabase
-      .from('profiles')
-      .select('subscription_status, trial_ends_at, is_admin, account_role, owner_id')
-      .eq('id', userId)
-      .maybeSingle()
-      .then(({ data }) => {
+      .rpc('get_owner_profile')
+      .then(({ data }: { data: any }) => {
         if (data) {
           setSubscriptionStatus(data.subscription_status ?? 'trialing');
           setTrialEndsAt(data.trial_ends_at ?? null);

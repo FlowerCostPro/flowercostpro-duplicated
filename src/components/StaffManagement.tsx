@@ -48,13 +48,8 @@ const StaffManagement: React.FC<StaffManagementProps> = ({ ownerId, ownerEmail }
   };
 
   const loadInvites = async () => {
-    const { data, error } = await supabase
-      .from('staff_invites')
-      .select('*')
-      .eq('owner_id', ownerId)
-      .eq('accepted', false)
-      .order('created_at', { ascending: false });
-    if (!error && data) setInvites(data as PendingInvite[]);
+    const { data, error } = await supabase.rpc('get_pending_invites');
+    if (!error && data) setInvites(data as unknown as PendingInvite[]);
   };
 
   useEffect(() => {
@@ -121,11 +116,9 @@ const StaffManagement: React.FC<StaffManagementProps> = ({ ownerId, ownerEmail }
 
     setInviteLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('staff_invites')
-        .insert({ owner_id: ownerId, email: inviteEmail.trim().toLowerCase() })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('create_invite', {
+        p_email: inviteEmail.trim().toLowerCase()
+      });
 
       if (error) throw error;
 
@@ -148,7 +141,7 @@ const StaffManagement: React.FC<StaffManagementProps> = ({ ownerId, ownerEmail }
   };
 
   const deleteInvite = async (inviteId: string) => {
-    const { error } = await supabase.from('staff_invites').delete().eq('id', inviteId);
+    const { error } = await supabase.rpc('delete_invite', { p_invite_id: inviteId });
     if (!error) {
       setInvites(prev => prev.filter(i => i.id !== inviteId));
       showToast('Invite removed', 'success');

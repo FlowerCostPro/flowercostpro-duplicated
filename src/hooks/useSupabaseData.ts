@@ -44,14 +44,10 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     if (!dataUserId) return;
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', dataUserId)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('get_owner_profile');
 
       if (error) throw error;
-      if (data) setProfile(data);
+      if (data) setProfile(data as unknown as Profile);
     } catch (error: any) {
       console.error('Error loading profile:', error);
     }
@@ -82,17 +78,13 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         return;
       }
 
-      // Owner: full data including wholesale_cost
-      const { data, error } = await supabase
-        .from('product_templates')
-        .select('*')
-        .eq('user_id', dataUserId)
-        .order('last_used', { ascending: false });
+      // Owner: full data including wholesale_cost via RPC
+      const { data, error } = await supabase.rpc('get_owner_product_templates');
 
       if (error) throw error;
       if (dataUserIdRef.current !== capturedDataUserId) return; // stale load
 
-      const templates: ProductTemplate[] = data.map(item => ({
+      const templates: ProductTemplate[] = (data || []).map((item: any) => ({
         id: item.id,
         name: item.name,
         wholesaleCost: Number(item.wholesale_cost),
@@ -130,23 +122,17 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         return;
       }
 
-      const { data, error } = await supabase
-        .from('markup_settings')
-        .select('*')
-        .eq('user_id', dataUserId)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('get_owner_markup_settings');
 
       if (error) {
-        if (error.code === 'PGRST116' || !data) {
-          setMarkupSettings({
-            stem: 2.5,
-            vase: 2.0,
-            accessory: 3.0,
-            other: 2.0
-          });
-          return;
-        }
-        throw error;
+        console.error('Error loading markup settings:', error);
+        setMarkupSettings({
+          stem: 2.5,
+          vase: 2.0,
+          accessory: 3.0,
+          other: 2.0
+        });
+        return;
       }
 
       if (data) {
@@ -156,6 +142,13 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           accessory: Number(data.accessory),
           other: Number(data.other),
           laborPercent: data.labor_percent != null ? Number(data.labor_percent) : null
+        });
+      } else {
+        setMarkupSettings({
+          stem: 2.5,
+          vase: 2.0,
+          accessory: 3.0,
+          other: 2.0
         });
       }
     } catch (error: any) {
@@ -201,24 +194,17 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         return;
       }
 
-      // Owner: full data including wholesale/profit/labor
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          order_products (*)
-        `)
-        .eq('user_id', dataUserId)
-        .order('created_at', { ascending: false });
+      // Owner: full data including wholesale/profit/labor via RPC
+      const { data: ordersData, error: ordersError } = await supabase.rpc('get_owner_orders');
 
       if (ordersError) throw ordersError;
       if (dataUserIdRef.current !== capturedDataUserId) return; // stale load
 
-      const orders: OrderRecord[] = ordersData.map(order => ({
+      const orders: OrderRecord[] = (ordersData || []).map((order: any) => ({
         id: order.id,
         name: order.name,
         date: new Date(order.created_at),
-        products: order.order_products.map(product => ({
+        products: (order.products || []).map((product: any) => ({
           id: product.id,
           name: product.name,
           wholesaleCost: Number(product.wholesale_cost),
@@ -249,25 +235,18 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     if (!dataUserId) return;
 
     try {
-      const { data: recipesData, error: recipesError } = await supabase
-        .from('arrangement_recipes')
-        .select(`
-          *,
-          recipe_ingredients (*)
-        `)
-        .eq('user_id', dataUserId)
-        .order('updated_at', { ascending: false });
+      const { data: recipesData, error: recipesError } = await supabase.rpc('get_owner_arrangement_recipes');
 
       if (recipesError) throw recipesError;
 
-      const recipes: ArrangementRecipe[] = recipesData.map(recipe => ({
+      const recipes: ArrangementRecipe[] = (recipesData || []).map((recipe: any) => ({
         id: recipe.id,
         name: recipe.name,
         description: recipe.description || undefined,
         websitePrice: Number(recipe.website_price),
         websiteUrl: recipe.website_url || undefined,
         photo: recipe.photo || undefined,
-        ingredients: recipe.recipe_ingredients.map(ingredient => ({
+        ingredients: (recipe.ingredients || []).map((ingredient: any) => ({
           name: ingredient.name,
           quantity: ingredient.quantity,
           type: ingredient.type,
@@ -288,27 +267,26 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     if (!dataUserId) return;
 
     try {
-      const { data, error } = await supabase
-        .from('pos_settings')
-        .select('*')
-        .eq('user_id', dataUserId)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('get_owner_pos_settings');
 
       if (error) {
-        if (error.code === 'PGRST116' || !data) {
-          setPosSettings({
-            storeName: '',
-            isConfigured: false
-          });
-          return;
-        }
-        throw error;
+        console.error('Error loading POS settings:', error);
+        setPosSettings({
+          storeName: '',
+          isConfigured: false
+        });
+        return;
       }
 
       if (data) {
         setPosSettings({
           storeName: data.store_name,
           isConfigured: data.is_configured
+        });
+      } else {
+        setPosSettings({
+          storeName: '',
+          isConfigured: false
         });
       }
     } catch (error: any) {
@@ -484,19 +462,14 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     }
 
     try {
-      const { data, error } = await supabase
-        .from('product_templates')
-        .insert({
-          user_id: userId,
-          name: template.name,
-          wholesale_cost: template.wholesaleCost,
-          type: template.type,
-          last_used: template.lastUsed.toISOString(),
-          inventory_count: template.inventoryCount !== undefined ? template.inventoryCount : null,
-          low_stock_threshold: template.lowStockThreshold !== undefined ? template.lowStockThreshold : null
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('save_owner_product_template', {
+        p_name: template.name,
+        p_wholesale_cost: template.wholesaleCost,
+        p_type: template.type,
+        p_last_used: template.lastUsed.toISOString(),
+        p_inventory_count: template.inventoryCount !== undefined ? template.inventoryCount : null,
+        p_low_stock_threshold: template.lowStockThreshold !== undefined ? template.lowStockThreshold : null
+      });
 
       if (error) throw error;
 
@@ -511,7 +484,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
       };
 
       setProductTemplates((prev: ProductTemplate[]) => [newTemplate, ...prev]);
-      return newTemplate;
+      return newTemplate
     } catch (error: any) {
       console.error('Error saving product template:', error);
       throw error;
@@ -573,14 +546,16 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         return;
       }
 
-      // Owner: direct update scoped to dataUserId (== userId for owners)
-      const { data, error } = await supabase
-        .from('product_templates')
-        .update(updateData)
-        .eq('id', templateId)
-        .eq('user_id', dataUserId)
-        .select()
-        .single();
+      // Owner: use RPC
+      const { data, error } = await supabase.rpc('update_owner_product_template', {
+        p_template_id: templateId,
+        p_name: updates.name ?? null,
+        p_wholesale_cost: updates.wholesaleCost ?? null,
+        p_type: updates.type ?? null,
+        p_last_used: updates.lastUsed ? updates.lastUsed.toISOString() : null,
+        p_inventory_count: ('inventoryCount' in updates) ? (updates.inventoryCount ?? null) : null,
+        p_low_stock_threshold: ('lowStockThreshold' in updates) ? (updates.lowStockThreshold ?? null) : null
+      });
 
       if (error) throw error;
 
@@ -622,11 +597,9 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     }
 
     try {
-      const { error } = await supabase
-        .from('product_templates')
-        .delete()
-        .eq('id', templateId)
-        .eq('user_id', userId);
+      const { error } = await supabase.rpc('delete_owner_product_template', {
+        p_template_id: templateId
+      });
 
       if (error) throw error;
 
@@ -654,16 +627,13 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     }
 
     try {
-      const { error } = await supabase
-        .from('markup_settings')
-        .upsert({
-          user_id: userId,
-          stem: settings.stem,
-          vase: settings.vase,
-          accessory: settings.accessory,
-          other: settings.other,
-          labor_percent: settings.laborPercent ?? null
-        }, { onConflict: 'user_id' });
+      const { error } = await supabase.rpc('save_owner_markup_settings', {
+        p_stem: settings.stem,
+        p_vase: settings.vase,
+        p_accessory: settings.accessory,
+        p_other: settings.other,
+        p_labor_percent: settings.laborPercent ?? null
+      });
 
       if (error) throw error;
 
@@ -737,30 +707,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         return newOrder;
       }
 
-      // Owner: direct insert with full financial data
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: dataUserId,
-          name: order.name,
-          total_wholesale: order.totalWholesale,
-          total_retail: order.totalRetail,
-          profit: order.profit,
-          photo: order.photo,
-          notes: order.notes,
-          staff_name: order.staffName,
-          staff_id: order.staffId,
-          customer_price: order.customerPrice ?? null,
-          labor_amount: order.laborAmount ?? null
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Insert order products
-      const orderProducts = order.products.map(product => ({
-        order_id: orderData.id,
+      // Owner: use RPC with full financial data
+      const productsJson = order.products.map(product => ({
         name: product.name,
         wholesale_cost: product.wholesaleCost,
         quantity: product.quantity,
@@ -768,11 +716,21 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         retail_price: product.retailPrice ?? null
       }));
 
-      const { error: productsError } = await supabase
-        .from('order_products')
-        .insert(orderProducts);
+      const { data: orderData, error: orderError } = await supabase.rpc('save_owner_order', {
+        p_name: order.name,
+        p_total_wholesale: order.totalWholesale,
+        p_total_retail: order.totalRetail,
+        p_profit: order.profit,
+        p_photo: order.photo || null,
+        p_notes: order.notes || null,
+        p_staff_name: order.staffName || null,
+        p_staff_id: order.staffId || null,
+        p_customer_price: order.customerPrice ?? null,
+        p_labor_amount: order.laborAmount ?? null,
+        p_products: productsJson
+      });
 
-      if (productsError) throw productsError;
+      if (orderError) throw orderError;
 
       // Update local state
       const newOrder: OrderRecord = {
@@ -822,15 +780,15 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
       }
     }
 
-    // Update database for authenticated users
+    // Update database for authenticated users via RPC
     if (userId && changes.length > 0) {
       try {
         for (const { id, newCount } of changes) {
-          const { error } = await supabase
-            .from('product_templates')
-            .update({ inventory_count: newCount })
-            .eq('id', id)
-            .eq('user_id', userId);
+          const { error } = await supabase.rpc('restock_product_template', {
+            p_template_id: id,
+            p_inventory_count: newCount,
+            p_low_stock_threshold: null
+          });
 
           if (error) {
             console.error('Error updating inventory in database:', error);
@@ -890,56 +848,32 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         updateData.photo = null;
       }
 
-      console.log('Updating order with data (photo length):', updateData.photo?.length || 0);
+      // Use RPC to update order + products atomically
+      const productsJson = updatedOrder.products.map(product => ({
+        name: product.name,
+        wholesale_cost: product.wholesaleCost,
+        quantity: product.quantity,
+        type: product.type,
+        retail_price: product.retailPrice ?? null
+      }));
 
-      const { error: orderError } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId)
-        .eq('user_id', userId);
+      const { error: orderError } = await supabase.rpc('update_owner_order', {
+        p_order_id: orderId,
+        p_name: updatedOrder.name,
+        p_total_wholesale: updatedOrder.totalWholesale,
+        p_total_retail: updatedOrder.totalRetail,
+        p_profit: updatedOrder.profit,
+        p_photo: updatedOrder.photo || null,
+        p_notes: updatedOrder.notes || null,
+        p_staff_name: updatedOrder.staffName || null,
+        p_staff_id: updatedOrder.staffId || null,
+        p_products: productsJson
+      });
 
       if (orderError) {
         console.error('Order update error:', orderError);
         throw orderError;
       }
-
-      console.log('Order updated successfully, now updating products');
-
-      // Delete existing order products
-      const { error: deleteError } = await supabase
-        .from('order_products')
-        .delete()
-        .eq('order_id', orderId);
-
-      if (deleteError) {
-        console.error('Delete products error:', deleteError);
-        throw deleteError;
-      }
-
-      console.log('Old products deleted, inserting new products');
-
-      // Insert new order products
-      if (updatedOrder.products.length > 0) {
-        const orderProducts = updatedOrder.products.map(product => ({
-          order_id: orderId,
-          name: product.name,
-          wholesale_cost: product.wholesaleCost,
-          quantity: product.quantity,
-          type: product.type,
-          retail_price: product.retailPrice ?? null
-        }));
-
-        const { error: productsError } = await supabase
-          .from('order_products')
-          .insert(orderProducts);
-
-        if (productsError) {
-          console.error('Insert products error:', productsError);
-          throw productsError;
-        }
-      }
-
-      console.log('Order update completed successfully');
 
       // Update local state
       setSavedOrders((prev: OrderRecord[]) =>
@@ -970,11 +904,9 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     }
 
     try {
-      const { error } = await supabase
-        .from('orders')
-        .delete()
-        .eq('id', orderId)
-        .eq('user_id', userId);
+      const { error } = await supabase.rpc('delete_owner_order', {
+        p_order_id: orderId
+      });
 
       if (error) throw error;
 
@@ -989,36 +921,23 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     if (!userId) return;
 
     try {
-      // Insert recipe
-      const { data: recipeData, error: recipeError } = await supabase
-        .from('arrangement_recipes')
-        .insert({
-          user_id: userId,
-          name: recipe.name,
-          description: recipe.description,
-          website_price: recipe.websitePrice,
-          website_url: recipe.websiteUrl,
-          photo: recipe.photo
-        })
-        .select()
-        .single();
-
-      if (recipeError) throw recipeError;
-
-      // Insert recipe ingredients
-      const ingredients = recipe.ingredients.map(ingredient => ({
-        recipe_id: recipeData.id,
+      const ingredientsJson = recipe.ingredients.map(ingredient => ({
         name: ingredient.name,
         quantity: ingredient.quantity,
         type: ingredient.type,
         notes: ingredient.notes
       }));
 
-      const { error: ingredientsError } = await supabase
-        .from('recipe_ingredients')
-        .insert(ingredients);
+      const { data: recipeData, error: recipeError } = await supabase.rpc('save_owner_arrangement_recipe', {
+        p_name: recipe.name,
+        p_description: recipe.description || null,
+        p_website_price: recipe.websitePrice,
+        p_website_url: recipe.websiteUrl || null,
+        p_photo: recipe.photo || null,
+        p_ingredients: ingredientsJson
+      });
 
-      if (ingredientsError) throw ingredientsError;
+      if (recipeError) throw recipeError;
 
       // Update local state
       const newRecipe: ArrangementRecipe = {
@@ -1039,46 +958,26 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     if (!userId) return;
 
     try {
-      const updateData: any = {};
-      if (updates.name) updateData.name = updates.name;
-      if (updates.description !== undefined) updateData.description = updates.description;
-      if (updates.websitePrice !== undefined) updateData.website_price = updates.websitePrice;
-      if (updates.websiteUrl !== undefined) updateData.website_url = updates.websiteUrl;
-      if (updates.photo !== undefined) updateData.photo = updates.photo;
+      const ingredientsJson = updates.ingredients
+        ? updates.ingredients.map(ingredient => ({
+            name: ingredient.name,
+            quantity: ingredient.quantity,
+            type: ingredient.type,
+            notes: ingredient.notes
+          }))
+        : null;
 
-      const { error: recipeError } = await supabase
-        .from('arrangement_recipes')
-        .update(updateData)
-        .eq('id', recipeId)
-        .eq('user_id', userId);
+      const { error: recipeError } = await supabase.rpc('update_owner_arrangement_recipe', {
+        p_recipe_id: recipeId,
+        p_name: updates.name ?? null,
+        p_description: updates.description ?? null,
+        p_website_price: updates.websitePrice ?? null,
+        p_website_url: updates.websiteUrl ?? null,
+        p_photo: updates.photo ?? null,
+        p_ingredients: ingredientsJson
+      });
 
       if (recipeError) throw recipeError;
-
-      // Update ingredients if provided
-      if (updates.ingredients) {
-        // Delete existing ingredients
-        const { error: deleteError } = await supabase
-          .from('recipe_ingredients')
-          .delete()
-          .eq('recipe_id', recipeId);
-
-        if (deleteError) throw deleteError;
-
-        // Insert new ingredients
-        const ingredients = updates.ingredients.map(ingredient => ({
-          recipe_id: recipeId,
-          name: ingredient.name,
-          quantity: ingredient.quantity,
-          type: ingredient.type,
-          notes: ingredient.notes
-        }));
-
-        const { error: ingredientsError } = await supabase
-          .from('recipe_ingredients')
-          .insert(ingredients);
-
-        if (ingredientsError) throw ingredientsError;
-      }
 
       // Update local state
       setArrangementRecipes((prev: ArrangementRecipe[]) =>
@@ -1098,11 +997,9 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     if (!userId) return;
 
     try {
-      const { error } = await supabase
-        .from('arrangement_recipes')
-        .delete()
-        .eq('id', recipeId)
-        .eq('user_id', userId);
+      const { error } = await supabase.rpc('delete_owner_arrangement_recipe', {
+        p_recipe_id: recipeId
+      });
 
       if (error) throw error;
 
@@ -1130,13 +1027,10 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     }
 
     try {
-      const { error } = await supabase
-        .from('pos_settings')
-        .upsert({
-          user_id: userId,
-          store_name: settings.storeName,
-          is_configured: settings.isConfigured
-        }, { onConflict: 'user_id' });
+      const { error } = await supabase.rpc('save_owner_pos_settings', {
+        p_store_name: settings.storeName,
+        p_is_configured: settings.isConfigured
+      });
 
       if (error) throw error;
 
