@@ -73,35 +73,78 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email: email.trim().toLowerCase(),
-      password,
-      email_confirm: true, // skip email confirmation
-      user_metadata: {
-        full_name: fullName,
-        account_role: "staff",
-        owner_id: callerUser.id,
-      },
-    });
+    // Check if a user with this email already exists (e.g. previously removed staff)
+    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
+    const existing = existingUsers?.users?.find(
+      (u: any) => u.email?.toLowerCase() === email.trim().toLowerCase()
+    );
 
-    if (createError) {
-      return new Response(JSON.stringify({ error: createError.message }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    let staffUserId: string;
+
+    if (existing) {
+      // Re-link existing user: update password and metadata, then relink profile
+      const { data: updated, error: updateError } = await adminClient.auth.admin.updateUserById(
+        existing.id,
+        {
+          password,
+          email_confirm: true,
+          user_metadata: {
+            full_name: fullName,
+            account_role: "staff",
+            owner_id: callerUser.id,
+          },
+        }
+      );
+
+      if (updateError) {
+        return new Response(JSON.stringify({ error: updateError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      staffUserId = updated.user.id;
+    } else {
+      const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+        email: email.trim().toLowerCase(),
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullName,
+          account_role: "staff",
+          owner_id: callerUser.id,
+        },
       });
+
+      if (createError) {
+        return new Response(JSON.stringify({ error: createError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      staffUserId = newUser.user.id;
     }
 
     // The handle_new_user trigger will have created the profile.
-    // Now explicitly ensure owner_id and account_role are set correctly
-    // (the trigger uses raw_user_meta_data which we set above, but let's be safe)
+    // Now explicitly ensure owner_id and account_role are set correctly.
+    // Use upsert in case the profile row was deleted when staff was removed.
     const { error: linkError } = await adminClient
       .from("profiles")
-      .update({ account_role: "staff", owner_id: callerUser.id })
-      .eq("id", newUser.user.id);
+      .upsert({
+        id: staffUserId,
+        account_role: "staff",
+        owner_id: callerUser.id,
+        full_name: fullName,
+        email: email.trim().toLowerCase(),
+      })
+      .eq("id", staffUserId);
 
     if (linkError) {
-      // Roll back: delete the auth user we just created
-      await adminClient.auth.admin.deleteUser(newUser.user.id);
+      // Only roll back if we created a new user (not re-linking)
+      if (!existing) {
+        await adminClient.auth.admin.deleteUser(staffUserId);
+      }
       return new Response(JSON.stringify({ error: "Failed to link staff to shop" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -110,8 +153,8 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({
-        id: newUser.user.id,
-        email: newUser.user.email,
+        id: staffUserId,
+        email: email.trim().toLowerCase(),
         fullName,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
