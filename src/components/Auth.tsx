@@ -75,12 +75,23 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
           } else if (signInData?.user) {
             // If there's an invite token, accept it to link this user to the owner
             if (inviteToken) {
-              const { error: inviteError } = await supabase.rpc('accept_staff_invite', {
-                p_token: inviteToken,
-                p_user_id: signInData.user.id,
-              });
-              if (inviteError) {
-                console.error('Invite accept error:', inviteError);
+              try {
+                const res = await fetch(
+                  `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-invite?action=accept`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                    },
+                    body: JSON.stringify({ token: inviteToken, userId: signInData.user.id }),
+                  }
+                );
+                if (!res.ok) {
+                  console.error('Invite accept failed:', await res.text());
+                }
+              } catch (inviteErr) {
+                console.error('Invite accept error:', inviteErr);
               }
             }
             onAuthSuccess();

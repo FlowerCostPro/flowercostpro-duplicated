@@ -31,25 +31,38 @@ const StaffInviteAcceptance: React.FC<StaffInviteAcceptanceProps> = ({ token, on
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase.rpc('get_staff_invite_by_token', {
-        p_token: token,
-      });
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-invite?action=lookup`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ token }),
+          }
+        );
 
-      if (error) {
+        if (!res.ok) {
+          setInviteError('This invitation link is invalid or has expired.');
+          setLoadingInvite(false);
+          return;
+        }
+
+        const data = await res.json();
+        if (data.error || !data.id) {
+          setInviteError('This invitation link is invalid, has already been used, or has expired.');
+          setLoadingInvite(false);
+          return;
+        }
+
+        setInviteInfo(data as unknown as InviteInfo);
+        setLoadingInvite(false);
+      } catch {
         setInviteError('This invitation link is invalid or has expired.');
         setLoadingInvite(false);
-        return;
       }
-
-      if (!data) {
-        setInviteError('This invitation link is invalid, has already been used, or has expired.');
-        setLoadingInvite(false);
-        return;
-      }
-
-      setInviteInfo(data as unknown as InviteInfo);
-      setFullName(data.email ? '' : '');
-      setLoadingInvite(false);
     })();
   }, [token]);
 
@@ -87,12 +100,19 @@ const StaffInviteAcceptance: React.FC<StaffInviteAcceptanceProps> = ({ token, on
         throw new Error('Account creation failed — no user ID returned.');
       }
 
-      const { error: inviteError } = await supabase.rpc('accept_staff_invite', {
-        p_token: token,
-        p_user_id: userId,
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-invite?action=accept`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ token, userId }),
+        }
+      );
 
-      if (inviteError) {
+      if (!res.ok) {
         throw new Error('Your account was created but the invite could not be linked. Please contact the shop owner.');
       }
 
