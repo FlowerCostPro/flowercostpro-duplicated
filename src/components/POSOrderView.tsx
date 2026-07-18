@@ -75,12 +75,38 @@ const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
 
   const copyPOSText = async () => {
     if (!selectedOrder) return;
-    
+
     const posText = generatePOSText(selectedOrder);
-    
+
     try {
+      // If the order has a photo, try to copy text + image together so the
+      // photo can be pasted into the POS system.
+      if (selectedOrder.photo) {
+        try {
+          const blob = await (await fetch(selectedOrder.photo)).blob();
+          const type = blob.type && blob.type.startsWith('image/') ? blob.type : 'image/png';
+          const imageBlob = blob.type === type ? blob : new Blob([blob], { type });
+          if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+            const item = new ClipboardItem({
+              'text/plain': new Blob([posText], { type: 'text/plain' }),
+              [type]: imageBlob,
+            });
+            await navigator.clipboard.write([item]);
+            showToast('Order details + photo copied to clipboard! Paste into your POS system.', 'success');
+            return;
+          }
+        } catch (imgErr) {
+          console.warn('Image copy failed, falling back to text only:', imgErr);
+        }
+      }
+
       await navigator.clipboard.writeText(posText);
-      showToast('Order details copied to clipboard! You can now paste this into your POS system.', 'success');
+      showToast(
+        selectedOrder.photo
+          ? 'Order text copied. Your browser does not support copying images — right-click the photo to save it.'
+          : 'Order details copied to clipboard! You can now paste this into your POS system.',
+        'success'
+      );
     } catch (err) {
       // Fallback for browsers that don't support clipboard API
       const textArea = document.createElement('textarea');
