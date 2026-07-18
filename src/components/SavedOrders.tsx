@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy, Image as ImageIcon } from 'lucide-react';
+import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
 import { buildPOSText } from '../lib/posText';
-import { copyTextAndPhoto, copyPhotoOnly } from '../lib/clipboardImage';
+import { copyTextAndPhoto } from '../lib/clipboardImage';
 
 interface SavedOrdersProps {
   orders: OrderRecord[];
@@ -53,9 +53,9 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
       setCopyStatusMap(prev => ({ ...prev, [order.id]: 'copied' }));
       showMessage(
         imageCopied
-          ? 'Order details + photo copied! Paste into your POS. Use Copy Photo if the image needs its own field.'
+          ? 'Order details + photo copied! Paste into your POS, Word, or email.'
           : order.photo
-            ? 'Order text copied. Use Copy Photo to copy the image separately.'
+            ? 'Order text copied. Your browser did not allow the photo onto the clipboard — right-click the photo to save it.'
             : 'Copied! Paste into your POS notes field.'
       );
       setTimeout(() => setCopyStatusMap(prev => ({ ...prev, [order.id]: 'idle' })), 4000);
@@ -83,18 +83,6 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
         showMessage('Copy failed — try a different browser or paste manually.');
         setTimeout(() => setCopyStatusMap(prev => ({ ...prev, [order.id]: 'idle' })), 5000);
       }
-    }
-  };
-
-  const handleCopyPhoto = async (order: OrderRecord) => {
-    if (!order.photo) return;
-    try {
-      await copyPhotoOnly(order.photo);
-      showMessage('Photo copied! Paste into your POS image field (Ctrl/Cmd+V).');
-    } catch (err) {
-      console.error('Photo copy failed:', err);
-      window.open(order.photo, '_blank');
-      showMessage('Could not copy photo to clipboard. Photo opened in a new tab — right-click to copy it.');
     }
   };
 
@@ -247,15 +235,6 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                 <Copy className="w-3.5 h-3.5" />
                 {status === 'copied' ? 'Copied!' : status === 'error' ? 'Copy failed' : 'Copy for POS'}
               </button>
-              {order.photo && (
-                <button
-                  onClick={() => handleCopyPhoto(order)}
-                  className="mt-2 w-full py-2 px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 bg-teal-600 text-white hover:bg-teal-700"
-                >
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  Copy Photo
-                </button>
-              )}
             </div>
           );
         })}
@@ -282,15 +261,6 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                     <Copy className="w-3.5 h-3.5" />
                     {(copyStatusMap[selectedOrder.id] ?? 'idle') === 'copied' ? 'Copied!' : 'Copy for POS'}
                   </button>
-                  {selectedOrder.photo && (
-                    <button
-                      onClick={() => handleCopyPhoto(selectedOrder)}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-teal-50 hover:bg-teal-100 text-teal-700"
-                    >
-                      <ImageIcon className="w-3.5 h-3.5" />
-                      Copy Photo
-                    </button>
-                  )}
                   <button
                     onClick={() => setSelectedOrder(null)}
                     className="text-gray-400 hover:text-gray-600"

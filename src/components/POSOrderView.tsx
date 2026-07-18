@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Receipt, Upload, X, DollarSign, Package, TrendingUp, Copy, FileText, Image as ImageIcon } from 'lucide-react';
+import { Receipt, Upload, X, DollarSign, Package, TrendingUp, Copy, FileText } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
 import { useToast } from './Toast';
-import { copyTextAndPhoto, copyPhotoOnly } from '../lib/clipboardImage';
+import { copyTextAndPhoto } from '../lib/clipboardImage';
 
 interface POSOrderViewProps {
   orders: OrderRecord[];
@@ -82,9 +82,9 @@ const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
     try {
       const { imageCopied } = await copyTextAndPhoto(posText, selectedOrder.photo);
       if (imageCopied) {
-        showToast('Order details + photo copied! Paste into your POS. Use Copy Photo if the image needs its own field.', 'success');
+        showToast('Order details + photo copied! Paste into your POS, Word, or email.', 'success');
       } else if (selectedOrder.photo) {
-        showToast('Order text copied. Use the Copy Photo button to copy the image separately.', 'success');
+        showToast('Order text copied. Your browser did not allow the photo onto the clipboard — right-click the photo to save it.', 'success');
       } else {
         showToast('Order details copied to clipboard! You can now paste this into your POS system.', 'success');
       }
@@ -97,18 +97,6 @@ const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
       document.execCommand('copy');
       document.body.removeChild(textArea);
       showToast('Order details copied to clipboard! You can now paste this into your POS system.', 'success');
-    }
-  };
-
-  const copyPhoto = async () => {
-    if (!selectedOrder?.photo) return;
-    try {
-      await copyPhotoOnly(selectedOrder.photo);
-      showToast('Photo copied! Paste into your POS image field (Ctrl/Cmd+V).', 'success');
-    } catch (err) {
-      console.error('Photo copy failed:', err);
-      window.open(selectedOrder.photo, '_blank');
-      showToast('Could not copy photo to clipboard. Photo opened in a new tab — right-click to copy it.', 'info');
     }
   };
 
@@ -384,7 +372,7 @@ const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-4 border-t">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-4 border-t">
             <button
               onClick={copyPOSText}
               className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
@@ -392,15 +380,6 @@ const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
               <Copy className="w-4 h-4" />
               Copy for POS
             </button>
-            {selectedOrder.photo && (
-              <button
-                onClick={copyPhoto}
-                className="bg-teal-600 text-white py-2 px-4 rounded-md hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <ImageIcon className="w-4 h-4" />
-                Copy Photo
-              </button>
-            )}
             <button
               onClick={downloadPOSText}
               className="bg-orange-600 text-white py-2 px-4 rounded-md hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"

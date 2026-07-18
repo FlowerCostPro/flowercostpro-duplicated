@@ -28,7 +28,7 @@ function clipboardItemSupported(): boolean {
 
 // Copy text + photo together. Returns whether the image was placed on the
 // clipboard (false when unsupported or encoding failed — caller should then
-// copy text-only and prompt the user to use the Copy Photo button).
+// copy text-only and prompt the user to save the photo manually).
 export async function copyTextAndPhoto(
   text: string,
   photo?: string | null
@@ -51,14 +51,4 @@ export async function copyTextAndPhoto(
     await navigator.clipboard.writeText(text);
     return { imageCopied: false };
   }
-}
-
-// Copy just the photo (PNG). Throws if unsupported so the caller can surface
-// a fallback (e.g. open the image in a new tab).
-export async function copyPhotoOnly(photo: string): Promise<void> {
-  if (!clipboardItemSupported()) {
-    throw new Error('Clipboard image copy unsupported in this browser');
-  }
-  const pngBlob = await photoToPngBlob(photo);
-  await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
 }
