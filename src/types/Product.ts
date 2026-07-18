@@ -1,3 +1,6 @@
+export type ProductUnit = 'stem' | 'bunch';
+export type BunchPortion = 1 | 2 | 3 | 4;
+
 export interface Product {
   id: string;
   templateId?: string;
@@ -5,6 +8,8 @@ export interface Product {
   wholesaleCost: number;
   quantity: number;
   type: 'stem' | 'vase' | 'accessory' | 'other';
+  unit: ProductUnit;
+  portionDivisor?: BunchPortion;
   inventoryCount?: number;
   lowStockThreshold?: number;
   retailPrice?: number;
@@ -15,6 +20,7 @@ export interface MarkupSettings {
   vase: number;
   accessory: number;
   other: number;
+  bunch: number;
   laborPercent?: number | null;
 }
 
@@ -24,6 +30,7 @@ export interface ProductTemplate {
   wholesaleCost: number;
   retailPrice?: number;
   type: 'stem' | 'vase' | 'accessory' | 'other';
+  unit: ProductUnit;
   lastUsed: Date;
   inventoryCount?: number;
   lowStockThreshold?: number;

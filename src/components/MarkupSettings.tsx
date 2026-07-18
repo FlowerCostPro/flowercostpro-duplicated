@@ -34,6 +34,8 @@ const MarkupSettingsComponent: React.FC<MarkupSettingsProps> = ({
     setHasChanges(true);
   };
 
+  const hasBunchProducts = true; // shown whenever settings are edited
+
   const handleSave = () => {
     console.log('MarkupSettings: handleSave called with:', localSettings);
     
@@ -55,7 +57,7 @@ const MarkupSettingsComponent: React.FC<MarkupSettingsProps> = ({
         <h2 className="text-xl font-semibold text-gray-800">Markup Settings</h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Stems Markup
@@ -122,6 +124,24 @@ const MarkupSettingsComponent: React.FC<MarkupSettingsProps> = ({
             />
             <span className="absolute right-3 top-2 text-gray-500 text-sm">x</span>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Bunch Markup
+          </label>
+          <div className="relative">
+            <input
+              type="number"
+              step="0.1"
+              min="1"
+              value={localSettings.bunch}
+              onChange={(e) => handleChange('bunch', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            <span className="absolute right-3 top-2 text-gray-500 text-sm">x</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">Applied to products sold per bunch</p>
         </div>
       </div>
 

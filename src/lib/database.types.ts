@@ -104,6 +104,7 @@ export type Database = {
           id: string
           other: number
           stem: number
+          bunch: number
           updated_at: string
           user_id: string
           vase: number
@@ -113,6 +114,7 @@ export type Database = {
           id?: string
           other?: number
           stem?: number
+          bunch?: number
           updated_at?: string
           user_id: string
           vase?: number
@@ -122,6 +124,7 @@ export type Database = {
           id?: string
           other?: number
           stem?: number
+          bunch?: number
           updated_at?: string
           user_id?: string
           vase?: number
@@ -145,6 +148,8 @@ export type Database = {
           retail_price: number | null
           type: Database["public"]["Enums"]["product_type"]
           wholesale_cost: number
+          portion_divisor: number | null
+          unit: string
         }
         Insert: {
           id?: string
@@ -154,6 +159,8 @@ export type Database = {
           retail_price?: number | null
           type: Database["public"]["Enums"]["product_type"]
           wholesale_cost: number
+          portion_divisor?: number | null
+          unit?: string
         }
         Update: {
           id?: string
@@ -163,6 +170,8 @@ export type Database = {
           retail_price?: number | null
           type?: Database["public"]["Enums"]["product_type"]
           wholesale_cost?: number
+          portion_divisor?: number | null
+          unit?: string
         }
         Relationships: [
           {
@@ -265,6 +274,7 @@ export type Database = {
           low_stock_threshold: number | null
           name: string
           type: Database["public"]["Enums"]["product_type"]
+          unit: string
           user_id: string
           wholesale_cost: number
         }
@@ -276,6 +286,7 @@ export type Database = {
           low_stock_threshold?: number | null
           name: string
           type: Database["public"]["Enums"]["product_type"]
+          unit?: string
           user_id: string
           wholesale_cost: number
         }
@@ -287,6 +298,7 @@ export type Database = {
           low_stock_threshold?: number | null
           name?: string
           type?: Database["public"]["Enums"]["product_type"]
+          unit?: string
           user_id?: string
           wholesale_cost?: number
         }

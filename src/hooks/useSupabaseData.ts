@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { ProductTemplate, MarkupSettings, OrderRecord, ArrangementRecipe, POSSettings, Product } from '../types/Product';
+
+const DEFAULT_MARKUP: MarkupSettings = {
+  stem: 2.5,
+  vase: 2.0,
+  accessory: 3.0,
+  other: 2.0,
+  bunch: 2.0,
+  laborPercent: null
+};
 import { Database } from '../lib/database.types';
 import sampleData from '../../sample-florist-data.json';
 
@@ -26,12 +35,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
   dataUserIdRef.current = dataUserId;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [productTemplates, setProductTemplates] = useState<ProductTemplate[]>([]);
-  const [markupSettings, setMarkupSettings] = useState<MarkupSettings>({
-    stem: 2.5,
-    vase: 2.0,
-    accessory: 3.0,
-    other: 2.0
-  });
+  const [markupSettings, setMarkupSettings] = useState<MarkupSettings>(DEFAULT_MARKUP);
   const [savedOrders, setSavedOrders] = useState<OrderRecord[]>([]);
   const [arrangementRecipes, setArrangementRecipes] = useState<ArrangementRecipe[]>([]);
   const [posSettings, setPosSettings] = useState<POSSettings>({
@@ -70,6 +74,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           wholesaleCost: 0, // not exposed to staff
           retailPrice: Number(item.retail_price),
           type: item.type,
+          unit: item.unit ?? 'stem',
           lastUsed: new Date(item.last_used),
           inventoryCount: item.inventory_count !== null ? item.inventory_count : undefined,
           lowStockThreshold: item.low_stock_threshold !== null ? item.low_stock_threshold : undefined
@@ -89,6 +94,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         name: item.name,
         wholesaleCost: Number(item.wholesale_cost),
         type: item.type,
+        unit: item.unit ?? 'stem',
         lastUsed: new Date(item.last_used),
         inventoryCount: item.inventory_count !== null ? item.inventory_count : undefined,
         lowStockThreshold: item.low_stock_threshold !== null ? item.low_stock_threshold : undefined
@@ -116,6 +122,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
             vase: Number(data.vase),
             accessory: Number(data.accessory),
             other: Number(data.other),
+            bunch: Number(data.bunch),
             laborPercent: null
           });
         }
@@ -126,12 +133,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
 
       if (error) {
         console.error('Error loading markup settings:', error);
-        setMarkupSettings({
-          stem: 2.5,
-          vase: 2.0,
-          accessory: 3.0,
-          other: 2.0
-        });
+        setMarkupSettings(DEFAULT_MARKUP);
         return;
       }
 
@@ -141,15 +143,11 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           vase: Number(data.vase),
           accessory: Number(data.accessory),
           other: Number(data.other),
+          bunch: Number(data.bunch ?? 2.0),
           laborPercent: data.labor_percent != null ? Number(data.labor_percent) : null
         });
       } else {
-        setMarkupSettings({
-          stem: 2.5,
-          vase: 2.0,
-          accessory: 3.0,
-          other: 2.0
-        });
+        setMarkupSettings(DEFAULT_MARKUP);
       }
     } catch (error: any) {
       console.error('Error loading markup settings:', error);
@@ -178,6 +176,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
             wholesaleCost: 0,
             quantity: p.quantity,
             type: p.type,
+            unit: p.unit ?? 'stem',
+            portionDivisor: p.portion_divisor ?? undefined,
             retailPrice: p.retail_price != null ? Number(p.retail_price) : undefined
           })),
           totalWholesale: 0,
@@ -210,6 +210,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           wholesaleCost: Number(product.wholesale_cost),
           quantity: product.quantity,
           type: product.type,
+          unit: product.unit ?? 'stem',
+          portionDivisor: product.portion_divisor ?? undefined,
           retailPrice: product.retail_price != null ? Number(product.retail_price) : undefined
         })),
         totalWholesale: Number(order.total_wholesale),
@@ -467,6 +469,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         p_wholesale_cost: template.wholesaleCost,
         p_type: template.type,
         p_last_used: template.lastUsed.toISOString(),
+        p_unit: template.unit ?? 'stem',
         p_inventory_count: template.inventoryCount !== undefined ? template.inventoryCount : null,
         p_low_stock_threshold: template.lowStockThreshold !== undefined ? template.lowStockThreshold : null
       });
@@ -478,6 +481,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         name: data.name,
         wholesaleCost: Number(data.wholesale_cost),
         type: data.type,
+        unit: data.unit ?? 'stem',
         lastUsed: new Date(data.last_used),
         inventoryCount: data.inventory_count !== null ? data.inventory_count : undefined,
         lowStockThreshold: data.low_stock_threshold !== null ? data.low_stock_threshold : undefined
@@ -527,7 +531,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         updateData.low_stock_threshold = updates.lowStockThreshold !== undefined ? updates.lowStockThreshold : null;
       }
 
-      // Staff: use SECURITY DEFINER RPC (RLS blocks direct UPDATE on owner's rows)
+      // Staff: use RPC (RLS blocks direct UPDATE on owner's rows)
       if (ownerId && ownerId !== userId) {
         const { error: rpcError } = await supabase.rpc('restock_product_template', {
           p_template_id: templateId,
@@ -553,6 +557,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         p_wholesale_cost: updates.wholesaleCost ?? null,
         p_type: updates.type ?? null,
         p_last_used: updates.lastUsed ? updates.lastUsed.toISOString() : null,
+        p_unit: updates.unit ?? null,
         p_inventory_count: ('inventoryCount' in updates) ? (updates.inventoryCount ?? null) : null,
         p_low_stock_threshold: ('lowStockThreshold' in updates) ? (updates.lowStockThreshold ?? null) : null
       });
@@ -565,6 +570,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         name: data.name,
         wholesaleCost: Number(data.wholesale_cost),
         type: data.type,
+        unit: data.unit ?? 'stem',
         lastUsed: new Date(data.last_used),
         inventoryCount: data.inventory_count !== null ? data.inventory_count : undefined,
         lowStockThreshold: data.low_stock_threshold !== null ? data.low_stock_threshold : undefined
@@ -632,6 +638,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         p_vase: settings.vase,
         p_accessory: settings.accessory,
         p_other: settings.other,
+        p_bunch: settings.bunch ?? 2.0,
         p_labor_percent: settings.laborPercent ?? null
       });
 
@@ -677,7 +684,11 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
       if (ownerId && ownerId !== userId) {
         const products = order.products
           .filter(p => p.templateId)
-          .map(p => ({ template_id: p.templateId, quantity: p.quantity }));
+          .map(p => ({
+            template_id: p.templateId,
+            quantity: p.quantity,
+            portion_divisor: p.portionDivisor ?? null
+          }));
 
         const { data: rpcData, error: rpcError } = await supabase.rpc('save_staff_order', {
           p_name: order.name,
@@ -713,6 +724,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         wholesale_cost: product.wholesaleCost,
         quantity: product.quantity,
         type: product.type,
+        unit: product.unit ?? 'stem',
+        portion_divisor: product.portionDivisor ?? null,
         retail_price: product.retailPrice ?? null
       }));
 
@@ -762,7 +775,10 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
       );
 
       if (matchingProduct && template.inventoryCount !== undefined) {
-        const newCount = Math.max(0, template.inventoryCount - matchingProduct.quantity);
+        const deduct = template.unit === 'bunch' && matchingProduct.portionDivisor
+          ? 1 / matchingProduct.portionDivisor
+          : matchingProduct.quantity;
+        const newCount = Math.max(0, template.inventoryCount - deduct);
         changes.push({ id: template.id, newCount });
         return { ...template, inventoryCount: newCount };
       }
@@ -854,6 +870,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         wholesale_cost: product.wholesaleCost,
         quantity: product.quantity,
         type: product.type,
+        unit: product.unit ?? 'stem',
+        portion_divisor: product.portionDivisor ?? null,
         retail_price: product.retailPrice ?? null
       }));
 

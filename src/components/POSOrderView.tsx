@@ -305,10 +305,14 @@ const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
             
             <div className="space-y-3">
               {selectedOrder.products.map((product: any, index: number) => {
-                // Calculate retail price based on current markup (this is an approximation)
-                const estimatedRetailPrice = product.wholesaleCost * 2.5; // Default multiplier
+                const isBunch = (product.unit ?? 'stem') === 'bunch';
+                const portionLabel = isBunch && product.portionDivisor
+                  ? ({ 1: 'Full', 2: 'Half', 3: 'Third', 4: 'Quarter' } as Record<number, string>)[product.portionDivisor]
+                  : null;
+                // Use stored retail_price when available
+                const unitRetail = product.retailPrice ?? (product.wholesaleCost * 2.5);
                 const totalWholesale = product.wholesaleCost * product.quantity;
-                const totalRetail = estimatedRetailPrice * product.quantity;
+                const totalRetail = unitRetail * product.quantity;
                 const itemProfit = totalRetail - totalWholesale;
 
                 return (
@@ -316,19 +320,26 @@ const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-3">
                         <div className="bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium text-gray-600">
-                          {product.quantity}
+                          {isBunch ? (portionLabel ?? 'Full').slice(0, 1) : product.quantity}
                         </div>
                         <div>
                           <h5 className="font-medium text-gray-800">{product.name}</h5>
-                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(product.type)}`}>
-                            {product.type}
-                          </span>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(product.type)}`}>
+                              {product.type}
+                            </span>
+                            {isBunch && (
+                              <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                                {portionLabel ?? 'Full'} bunch
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="font-bold text-green-600">${totalRetail.toFixed(2)}</div>
                         <div className="text-sm text-gray-500">
-                          ${estimatedRetailPrice.toFixed(2)} each
+                          ${unitRetail.toFixed(2)}{isBunch ? ' portion' : ' each'}
                         </div>
                       </div>
                     </div>

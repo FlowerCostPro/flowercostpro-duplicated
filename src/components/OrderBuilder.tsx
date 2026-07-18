@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { ShoppingCart, Plus, Minus, Search, X, Camera, RefreshCw } from 'lucide-react';
-import { Product, MarkupSettings, ProductTemplate, OrderRecord, ArrangementRecipe, POSSettings } from '../types/Product';
+import { Product, MarkupSettings, ProductTemplate, OrderRecord, ArrangementRecipe, POSSettings, BunchPortion } from '../types/Product';
 import { useToast } from './Toast';
 import { supabase } from '../lib/supabase';
 
@@ -21,7 +21,17 @@ interface OrderItem extends Product {
   retailPrice: number;
   totalWholesale: number;
   totalRetail: number;
+  portionDivisor?: BunchPortion;
 }
+
+const PORTION_LABELS: Record<BunchPortion, string> = {
+  1: 'Full',
+  2: 'Half',
+  3: 'Third',
+  4: 'Quarter'
+};
+
+const PORTION_DIVISORS: BunchPortion[] = [1, 2, 3, 4];
 
 const OrderBuilder: React.FC<OrderBuilderProps> = ({
   templates,
@@ -133,19 +143,25 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     recipe.name.toLowerCase().includes(recipeSearchTerm.toLowerCase().trim())
   );
 
-  const addItemFromTemplate = (template: ProductTemplate, quantity: number = 1) => {
+  const addItemFromTemplate = (template: ProductTemplate, quantity: number = 1, portionDivisor?: BunchPortion) => {
+    const isBunch = (template.unit ?? 'stem') === 'bunch';
+    const divisor = isBunch ? (portionDivisor ?? 1) : 1;
+
     // Use pre-computed retailPrice when available (staff templates from secure RPC)
-    const retailPrice = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[template.type] * 100) / 100;
-    const totalWholesale = template.wholesaleCost * quantity;
-    const totalRetail = retailPrice * quantity;
+    const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[isBunch ? 'bunch' : template.type] * 100) / 100;
+    const retailPrice = isBunch ? Math.round((fullRetail / divisor) * 100) / 100 : fullRetail;
+    const totalWholesale = isBunch ? 0 : template.wholesaleCost * quantity;
+    const totalRetail = isBunch ? retailPrice : retailPrice * quantity;
 
     const newItem: OrderItem = {
-      id: `order-item-${Date.now()}`,
+      id: `order-item-${Date.now()}-${Math.random()}`,
       templateId: template.id,
       name: template.name,
-      wholesaleCost: template.wholesaleCost,
-      quantity,
+      wholesaleCost: isBunch ? 0 : template.wholesaleCost,
+      quantity: isBunch ? 1 : quantity,
       type: template.type,
+      unit: template.unit ?? 'stem',
+      portionDivisor: isBunch ? divisor : undefined,
       retailPrice,
       totalWholesale,
       totalRetail
@@ -163,7 +179,9 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         name: item.name,
         wholesaleCost: item.wholesaleCost,
         quantity: item.quantity,
-        type: item.type
+        type: item.type,
+        unit: item.unit,
+        portionDivisor: item.portionDivisor
       }));
       onOrderChange(updatedProducts);
     }
@@ -181,18 +199,22 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       );
 
       if (template) {
+        const isBunch = (template.unit ?? 'stem') === 'bunch';
         // Use pre-computed retailPrice when available (staff templates from secure RPC)
-        const retailPrice = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[ingredient.type] * 100) / 100;
-        const totalWholesale = template.wholesaleCost * ingredient.quantity;
-        const totalRetail = retailPrice * ingredient.quantity;
+        const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[isBunch ? 'bunch' : ingredient.type] * 100) / 100;
+        const retailPrice = fullRetail;
+        const totalWholesale = isBunch ? 0 : template.wholesaleCost * ingredient.quantity;
+        const totalRetail = isBunch ? retailPrice : retailPrice * ingredient.quantity;
 
         const newItem: OrderItem = {
           id: `recipe-item-${Date.now()}-${Math.random()}`,
           templateId: template.id,
           name: ingredient.name,
-          wholesaleCost: template.wholesaleCost,
-          quantity: ingredient.quantity,
+          wholesaleCost: isBunch ? 0 : template.wholesaleCost,
+          quantity: isBunch ? 1 : ingredient.quantity,
           type: ingredient.type,
+          unit: template.unit ?? 'stem',
+          portionDivisor: isBunch ? 1 : undefined,
           retailPrice,
           totalWholesale,
           totalRetail
@@ -220,7 +242,9 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         name: item.name,
         wholesaleCost: item.wholesaleCost,
         quantity: item.quantity,
-        type: item.type
+        type: item.type,
+        unit: item.unit,
+        portionDivisor: item.portionDivisor
       }));
       onOrderChange(updatedProducts);
     }
@@ -234,6 +258,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
     const updatedItems = orderItems.map(item => {
       if (item.id === itemId) {
+        // Bunch items always have quantity 1 (portion controls the amount)
+        if ((item.unit ?? 'stem') === 'bunch') return item;
         const totalWholesale = item.wholesaleCost * newQuantity;
         const totalRetail = item.retailPrice * newQuantity;
         return {
@@ -255,10 +281,29 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         name: item.name,
         wholesaleCost: item.wholesaleCost,
         quantity: item.quantity,
-        type: item.type
+        type: item.type,
+        unit: item.unit,
+        portionDivisor: item.portionDivisor
       }));
       onOrderChange(updatedProducts);
     }
+  };
+
+  const updateItemPortion = (itemId: string, newDivisor: BunchPortion) => {
+    setOrderItems(orderItems.map((item: OrderItem) => {
+      if (item.id === itemId && (item.unit ?? 'stem') === 'bunch') {
+        // Recalculate retail from the full-bunch retail price
+        const fullRetail = item.retailPrice * (item.portionDivisor ?? 1);
+        const newRetail = Math.round((fullRetail / newDivisor) * 100) / 100;
+        return {
+          ...item,
+          portionDivisor: newDivisor,
+          retailPrice: newRetail,
+          totalRetail: newRetail
+        };
+      }
+      return item;
+    }));
   };
 
   const updateItemRetailPrice = (itemId: string, newRetailPrice: number) => {
@@ -286,7 +331,9 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         name: item.name,
         wholesaleCost: item.wholesaleCost,
         quantity: item.quantity,
-        type: item.type
+        type: item.type,
+        unit: item.unit,
+        portionDivisor: item.portionDivisor
       }));
       onOrderChange(updatedProducts);
     }
@@ -374,6 +421,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         wholesaleCost: item.wholesaleCost,
         quantity: item.quantity,
         type: item.type,
+        unit: item.unit,
+        portionDivisor: item.portionDivisor,
         retailPrice: item.retailPrice
       })),
       totalWholesale,
@@ -625,6 +674,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                 const hasInventory = template.inventoryCount !== undefined;
                 const isLowStock = hasInventory && template.lowStockThreshold !== undefined && template.inventoryCount! <= template.lowStockThreshold!;
                 const isOutOfStock = hasInventory && template.inventoryCount === 0;
+                const isBunch = (template.unit ?? 'stem') === 'bunch';
+                const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[isBunch ? 'bunch' : template.type] * 100) / 100;
 
                 return (
                   <div
@@ -638,6 +689,11 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <div className="font-medium text-gray-800">{template.name}</div>
+                          {isBunch && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                              per bunch
+                            </span>
+                          )}
                           {hasInventory && (
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                               isOutOfStock
@@ -651,11 +707,11 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                           )}
                         </div>
                         <div className="text-sm text-gray-500">
-                          ${(template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[template.type] * 100) / 100).toFixed(2)} • {template.type}
+                          ${fullRetail.toFixed(2)}{isBunch ? ' /bunch' : ''} • {template.type}
                         </div>
                       </div>
                       <div className="text-sm text-blue-600">
-                        ${(template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[template.type] * 100) / 100).toFixed(2)} retail
+                        ${fullRetail.toFixed(2)} retail
                       </div>
                     </div>
                   </div>
@@ -674,7 +730,9 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         <div className="mb-6">
           <h3 className="text-lg font-medium text-gray-800 mb-4">Order Items</h3>
           <div className="space-y-3">
-            {orderItems.map((item: OrderItem) => (
+            {orderItems.map((item: OrderItem) => {
+              const isBunchItem = (item.unit ?? 'stem') === 'bunch';
+              return (
               <div key={item.id} className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -682,6 +740,11 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(item.type)}`}>
                       {item.type}
                     </span>
+                    {isBunchItem && (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                        per bunch
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => removeItem(item.id)}
@@ -690,52 +753,72 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+
+                <div className={`grid gap-4 text-sm ${isBunchItem ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-4'}`}>
                   <div>
-                    <label className="block text-gray-600 mb-1">Quantity</label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
-                        className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <input
-                        type="number"
-                        min="1"
-                        value={quantityInputs[item.id] ?? item.quantity.toString()}
-                        onChange={e => {
-                          setQuantityInputs(prev => ({ ...prev, [item.id]: e.target.value }));
-                          const val = parseInt(e.target.value);
-                          if (!isNaN(val) && val > 0) updateItemQuantity(item.id, val);
-                        }}
-                        onBlur={e => {
-                          const val = parseInt(e.target.value);
-                          if (isNaN(val) || val <= 0) {
-                            setQuantityInputs(prev => ({ ...prev, [item.id]: item.quantity.toString() }));
-                          } else {
-                            setQuantityInputs(prev => { const next = { ...prev }; delete next[item.id]; return next; });
-                          }
-                        }}
-                        className="w-14 text-center font-medium border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
-                      />
-                      <button
-                        onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
-                        className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
+                    <label className="block text-gray-600 mb-1">
+                      {isBunchItem ? 'Portion' : 'Quantity'}
+                    </label>
+                    {isBunchItem ? (
+                      <div className="flex gap-1 bg-white border border-gray-300 rounded-md p-1">
+                        {PORTION_DIVISORS.map(d => (
+                          <button
+                            key={d}
+                            onClick={() => updateItemPortion(item.id, d)}
+                            className={`flex-1 py-1 text-xs font-medium rounded transition-colors ${
+                              (item.portionDivisor ?? 1) === d
+                                ? 'bg-teal-500 text-white'
+                                : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                          >
+                            {PORTION_LABELS[d]}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
+                          className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={quantityInputs[item.id] ?? item.quantity.toString()}
+                          onChange={e => {
+                            setQuantityInputs(prev => ({ ...prev, [item.id]: e.target.value }));
+                            const val = parseInt(e.target.value);
+                            if (!isNaN(val) && val > 0) updateItemQuantity(item.id, val);
+                          }}
+                          onBlur={e => {
+                            const val = parseInt(e.target.value);
+                            if (isNaN(val) || val <= 0) {
+                              setQuantityInputs(prev => ({ ...prev, [item.id]: item.quantity.toString() }));
+                            } else {
+                              setQuantityInputs(prev => { const next = { ...prev }; delete next[item.id]; return next; });
+                            }
+                          }}
+                          className="w-14 text-center font-medium border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                        <button
+                          onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
+                          className="w-8 h-8 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  
-                  {userRole !== 'staff' && (
+
+                  {!isBunchItem && userRole !== 'staff' && (
                     <div>
                       <label className="block text-gray-600 mb-1">Wholesale Cost</label>
                       <div className="font-medium">${item.wholesaleCost.toFixed(2)}</div>
                     </div>
                   )}
-                  
+
                   <div>
                     <label className="block text-gray-600 mb-1">
                       {userRole === 'staff' ? 'Price Each' : 'Retail Price (Editable)'}
@@ -753,7 +836,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                       />
                     )}
                   </div>
-                  
+
                   <div>
                     <label className="block text-gray-600 mb-1">
                       {userRole === 'staff' ? 'Total Cost' : 'Total Retail'}
@@ -762,7 +845,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Order Summary */}

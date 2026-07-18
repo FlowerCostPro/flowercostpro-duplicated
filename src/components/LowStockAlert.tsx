@@ -56,7 +56,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
       <div className="bg-white rounded p-2 text-center border">
         <div className="text-gray-500 text-xs">In Stock</div>
         <div className={`font-bold text-lg ${isOutOfStock ? 'text-red-600' : 'text-amber-600'}`}>
-          {template.inventoryCount}
+          {formatStock(template.inventoryCount ?? 0, template.unit)}
         </div>
       </div>
       <div className="bg-white rounded p-2 text-center border">
@@ -76,6 +76,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
       <input
         type="number"
         min="0"
+        step={(template.unit ?? 'stem') === 'bunch' ? "0.1" : "1"}
         value={restockValue}
         onChange={e => onRestockChange(template.id, e.target.value)}
         placeholder={isOutOfStock ? 'New qty' : 'Add qty'}
@@ -101,6 +102,13 @@ interface LowStockAlertProps {
   onUpdateTemplate: (templateId: string, updates: Partial<ProductTemplate>) => Promise<void>;
 }
 
+const formatStock = (count: number, unit: string | undefined) => {
+  const isBunch = unit === 'bunch';
+  const rounded = Math.round(count * 100) / 100;
+  const display = Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(2);
+  return `${display} ${isBunch ? 'bunch' : 'unit'}${rounded !== 1 ? 's' : ''}`;
+};
+
 const LowStockAlert: React.FC<LowStockAlertProps> = ({ templates, onUpdateTemplate }) => {
   const { showToast } = useToast();
   const [restockAmounts, setRestockAmounts] = useState<Record<string, string>>({});
@@ -120,7 +128,7 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({ templates, onUpdateTempla
   };
 
   const handleRestock = async (template: ProductTemplate) => {
-    const amount = parseInt(restockAmounts[template.id] ?? '');
+    const amount = parseFloat(restockAmounts[template.id] ?? '');
     if (isNaN(amount) || amount <= 0) return;
     const newCount = (template.inventoryCount ?? 0) + amount;
     setRestockAmounts(prev => { const n = { ...prev }; delete n[template.id]; return n; });
@@ -132,7 +140,7 @@ const LowStockAlert: React.FC<LowStockAlertProps> = ({ templates, onUpdateTempla
   };
 
   const handleSetStock = async (template: ProductTemplate) => {
-    const amount = parseInt(restockAmounts[template.id] ?? '');
+    const amount = parseFloat(restockAmounts[template.id] ?? '');
     if (isNaN(amount) || amount < 0) return;
     setRestockAmounts(prev => { const n = { ...prev }; delete n[template.id]; return n; });
     try {
