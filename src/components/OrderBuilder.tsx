@@ -150,14 +150,15 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     // Use pre-computed retailPrice when available (staff templates from secure RPC)
     const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[isBunch ? 'bunch' : template.type] * 100) / 100;
     const retailPrice = isBunch ? Math.round((fullRetail / divisor) * 100) / 100 : fullRetail;
-    const totalWholesale = isBunch ? 0 : template.wholesaleCost * quantity;
+    const portionWholesale = Math.round((template.wholesaleCost / divisor) * 100) / 100;
+    const totalWholesale = isBunch ? portionWholesale : template.wholesaleCost * quantity;
     const totalRetail = isBunch ? retailPrice : retailPrice * quantity;
 
     const newItem: OrderItem = {
       id: `order-item-${Date.now()}-${Math.random()}`,
       templateId: template.id,
       name: template.name,
-      wholesaleCost: isBunch ? 0 : template.wholesaleCost,
+      wholesaleCost: isBunch ? portionWholesale : template.wholesaleCost,
       quantity: isBunch ? 1 : quantity,
       type: template.type,
       unit: template.unit ?? 'stem',
@@ -203,14 +204,15 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         // Use pre-computed retailPrice when available (staff templates from secure RPC)
         const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[isBunch ? 'bunch' : ingredient.type] * 100) / 100;
         const retailPrice = fullRetail;
-        const totalWholesale = isBunch ? 0 : template.wholesaleCost * ingredient.quantity;
+        const portionWholesale = Math.round((template.wholesaleCost / (isBunch ? 1 : 1)) * 100) / 100;
+        const totalWholesale = isBunch ? portionWholesale : template.wholesaleCost * ingredient.quantity;
         const totalRetail = isBunch ? retailPrice : retailPrice * ingredient.quantity;
 
         const newItem: OrderItem = {
           id: `recipe-item-${Date.now()}-${Math.random()}`,
           templateId: template.id,
           name: ingredient.name,
-          wholesaleCost: isBunch ? 0 : template.wholesaleCost,
+          wholesaleCost: isBunch ? portionWholesale : template.wholesaleCost,
           quantity: isBunch ? 1 : ingredient.quantity,
           type: ingredient.type,
           unit: template.unit ?? 'stem',
@@ -292,13 +294,18 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   const updateItemPortion = (itemId: string, newDivisor: BunchPortion) => {
     setOrderItems(orderItems.map((item: OrderItem) => {
       if (item.id === itemId && (item.unit ?? 'stem') === 'bunch') {
-        // Recalculate retail from the full-bunch retail price
-        const fullRetail = item.retailPrice * (item.portionDivisor ?? 1);
+        // Derive full-bunch values from the current portion
+        const currentDivisor = item.portionDivisor ?? 1;
+        const fullRetail = item.retailPrice * currentDivisor;
+        const fullWholesale = item.wholesaleCost * currentDivisor;
         const newRetail = Math.round((fullRetail / newDivisor) * 100) / 100;
+        const newWholesale = Math.round((fullWholesale / newDivisor) * 100) / 100;
         return {
           ...item,
           portionDivisor: newDivisor,
           retailPrice: newRetail,
+          wholesaleCost: newWholesale,
+          totalWholesale: newWholesale,
           totalRetail: newRetail
         };
       }

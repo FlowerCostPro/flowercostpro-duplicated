@@ -344,18 +344,24 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                 <div>
                   <h4 className="font-medium text-gray-800 mb-3">Products ({selectedOrder.products.length} items)</h4>
                   <div className="space-y-2">
-                    {selectedOrder.products.map((product: any, index: number) => (
+                    {selectedOrder.products.map((product: any, index: number) => {
+                      const isBunch = (product.unit ?? 'stem') === 'bunch';
+                      const portionLabel = isBunch && product.portionDivisor
+                        ? ({ 1: 'Full', 2: 'Half', 3: 'Third', 4: 'Quarter' } as Record<number, string>)[product.portionDivisor]
+                        : null;
+                      return (
                       <div key={index} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-md text-sm">
                         <div>
                           <span className="font-medium">{product.name}</span>
-                          <span className="text-gray-500 ml-2">({product.type})</span>
+                          <span className="text-gray-500 ml-2">({isBunch ? `${portionLabel ?? 'Full'} bunch` : product.type})</span>
                         </div>
                         <div className="text-right">
-                          <div>Qty: {product.quantity}</div>
-                          <div className="text-gray-600">${product.wholesaleCost.toFixed(2)} each</div>
+                          <div>{isBunch ? (portionLabel ?? 'Full') : `Qty: ${product.quantity}`}</div>
+                          <div className="text-gray-600">${product.wholesaleCost.toFixed(2)}{isBunch ? ' portion' : ' each'}</div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
