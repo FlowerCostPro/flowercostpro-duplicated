@@ -87,5 +87,3 @@ export async function copyTextAndPhoto(
     return { imageCopied: false };
   }
 }
-
-export { copyTextAndPhoto }
