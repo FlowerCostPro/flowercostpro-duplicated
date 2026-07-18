@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Receipt, Upload, X, DollarSign, Package, TrendingUp, Copy, FileText, Image as ImageIcon } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
 import { useToast } from './Toast';
+import { copyTextAndPhoto, copyPhotoOnly } from '../lib/clipboardImage';
 
 interface POSOrderViewProps {
   orders: OrderRecord[];
@@ -73,60 +74,20 @@ const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
     return lines.join('\n');
   };
 
-  // Convert any image data URL to a PNG Blob. Chrome's ClipboardItem only
-  // reliably accepts image/png, so JPEG/data-URL photos must be re-encoded.
-  const photoToPngBlob = (dataUrl: string): Promise<Blob> =>
-    new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return reject(new Error('Canvas 2D context unavailable'));
-        ctx.drawImage(img, 0, 0);
-        canvas.toBlob((blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error('Failed to encode PNG'));
-        }, 'image/png');
-      };
-      img.onerror = () => reject(new Error('Failed to load photo'));
-      img.src = dataUrl;
-    });
-
   const copyPOSText = async () => {
     if (!selectedOrder) return;
 
     const posText = generatePOSText(selectedOrder);
 
     try {
-      // If the order has a photo, copy text + PNG image together. Most POS
-      // systems paste whichever MIME matches the focused field, so this lets
-      // one copy populate both a text field and an image field.
-      if (selectedOrder.photo) {
-        try {
-          const pngBlob = await photoToPngBlob(selectedOrder.photo);
-          if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-            const item = new ClipboardItem({
-              'text/plain': new Blob([posText], { type: 'text/plain' }),
-              'image/png': pngBlob,
-            });
-            await navigator.clipboard.write([item]);
-            showToast('Order details + photo copied! Paste into your POS — use the Copy Photo button if the image needs its own field.', 'success');
-            return;
-          }
-        } catch (imgErr) {
-          console.warn('Combined image copy failed, falling back to text only:', imgErr);
-        }
+      const { imageCopied } = await copyTextAndPhoto(posText, selectedOrder.photo);
+      if (imageCopied) {
+        showToast('Order details + photo copied! Paste into your POS. Use Copy Photo if the image needs its own field.', 'success');
+      } else if (selectedOrder.photo) {
+        showToast('Order text copied. Use the Copy Photo button to copy the image separately.', 'success');
+      } else {
+        showToast('Order details copied to clipboard! You can now paste this into your POS system.', 'success');
       }
-
-      await navigator.clipboard.writeText(posText);
-      showToast(
-        selectedOrder.photo
-          ? 'Order text copied. Use the Copy Photo button to copy the image separately.'
-          : 'Order details copied to clipboard! You can now paste this into your POS system.',
-        'success'
-      );
     } catch (err) {
       // Fallback for browsers that don't support clipboard API
       const textArea = document.createElement('textarea');
@@ -142,15 +103,8 @@ const POSOrderView: React.FC<POSOrderViewProps> = ({ orders }) => {
   const copyPhoto = async () => {
     if (!selectedOrder?.photo) return;
     try {
-      const pngBlob = await photoToPngBlob(selectedOrder.photo);
-      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
-        showToast('Photo copied! Paste into your POS image field (Ctrl/Cmd+V).', 'success');
-        return;
-      }
-      // Fallback: open the image in a new tab so the user can save/paste manually
-      window.open(selectedOrder.photo, '_blank');
-      showToast('Clipboard image copy unsupported in this browser. Photo opened in a new tab — right-click to save or copy.', 'info');
+      await copyPhotoOnly(selectedOrder.photo);
+      showToast('Photo copied! Paste into your POS image field (Ctrl/Cmd+V).', 'success');
     } catch (err) {
       console.error('Photo copy failed:', err);
       window.open(selectedOrder.photo, '_blank');
