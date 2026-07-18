@@ -381,6 +381,7 @@ function App() {
           name: product.name,
           wholesaleCost: product.wholesaleCost,
           type: product.type,
+          unit: (product as any).unit ?? 'stem',
           lastUsed: new Date(),
           inventoryCount: (product as any).inventoryCount,
           lowStockThreshold: (product as any).lowStockThreshold
@@ -388,9 +389,10 @@ function App() {
 
         await saveProductTemplate(template);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding product:', error);
-      showToast('Error adding product. Please try again.', 'error');
+      const errorMessage = error?.message || 'Unknown error occurred';
+      showToast(`Error adding product: ${errorMessage}`, 'error');
     }
   };
 

@@ -444,6 +444,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         name: template.name,
         wholesaleCost: template.wholesaleCost,
         type: template.type,
+        unit: template.unit ?? 'stem',
         lastUsed: template.lastUsed,
         inventoryCount: template.inventoryCount,
         lowStockThreshold: template.lowStockThreshold
