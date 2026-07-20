@@ -34,6 +34,7 @@ export interface ProductTemplate {
   lastUsed: Date;
   inventoryCount?: number;
   lowStockThreshold?: number;
+  isSample?: boolean;
 }
 
 export interface OrderRecord {

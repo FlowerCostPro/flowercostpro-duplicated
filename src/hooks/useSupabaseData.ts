@@ -97,7 +97,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         unit: item.unit ?? 'stem',
         lastUsed: new Date(item.last_used),
         inventoryCount: item.inventory_count !== null ? item.inventory_count : undefined,
-        lowStockThreshold: item.low_stock_threshold !== null ? item.low_stock_threshold : undefined
+        lowStockThreshold: item.low_stock_threshold !== null ? item.low_stock_threshold : undefined,
+        isSample: Boolean(item.is_sample)
       }));
 
       setProductTemplates(templates);
@@ -617,6 +618,30 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     }
   };
 
+  const deleteSampleProducts = async () => {
+    if (!userId) {
+      const filtered = productTemplates.filter((t: ProductTemplate) => !t.isSample);
+      setProductTemplates(filtered);
+      try {
+        localStorage.setItem('demo_product_templates', JSON.stringify(filtered));
+      } catch (error) {
+        console.error('Error deleting sample products from localStorage:', error);
+      }
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('delete_owner_sample_products');
+      if (error) throw error;
+
+      setProductTemplates((prev: ProductTemplate[]) => prev.filter((t: ProductTemplate) => !t.isSample));
+      return data as number;
+    } catch (error: any) {
+      console.error('Error deleting sample products:', error);
+      throw error;
+    }
+  };
+
   const saveMarkupSettings = async (settings: MarkupSettings) => {
     if (!userId) {
       // Demo mode - save to local state
@@ -1101,6 +1126,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     saveProductTemplate,
     updateProductTemplate,
     deleteProductTemplate,
+    deleteSampleProducts,
     saveMarkupSettings,
     saveOrder,
     updateOrder,

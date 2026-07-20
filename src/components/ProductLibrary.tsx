@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Library, CreditCard as Edit2, Trash2, Clock, Search, ListFilter as Filter, RefreshCw } from 'lucide-react';
+import { Library, CreditCard as Edit2, Trash2, Clock, Search, ListFilter as Filter, RefreshCw, PackageX } from 'lucide-react';
 import { ProductTemplate, MarkupSettings } from '../types/Product';
 import { useToast } from './Toast';
 
@@ -8,13 +8,15 @@ interface ProductLibraryProps {
   markupSettings: MarkupSettings;
   onUpdateTemplate: (templateId: string, updates: Partial<ProductTemplate>) => Promise<void>;
   onDeleteTemplate: (templateId: string) => void;
+  onDeleteSampleProducts: () => Promise<number | void>;
 }
 
 const ProductLibrary: React.FC<ProductLibraryProps> = ({
   templates,
   markupSettings,
   onUpdateTemplate,
-  onDeleteTemplate
+  onDeleteTemplate,
+  onDeleteSampleProducts
 }) => {
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,6 +31,9 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
     lowStockThreshold: string;
   }>({ name: '', wholesaleCost: '', type: 'stem', unit: 'stem', inventoryCount: '', lowStockThreshold: '' });
   const [restockAmounts, setRestockAmounts] = useState<Record<string, string>>({});
+  const [removingSamples, setRemovingSamples] = useState(false);
+
+  const sampleCount = templates.filter(t => t.isSample).length;
 
   const handleRestock = async (template: ProductTemplate) => {
     const amount = parseFloat(restockAmounts[template.id] ?? '');
@@ -40,6 +45,19 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
       showToast(`Restocked ${template.name} — now ${newCount} in stock`, 'success');
     } catch {
       showToast('Failed to update inventory. Please try again.', 'error');
+    }
+  };
+
+  const handleRemoveSamples = async () => {
+    if (!window.confirm('Remove all sample products? This deletes every product labeled "(sample)". Your own products are not affected.')) return;
+    setRemovingSamples(true);
+    try {
+      const count = await onDeleteSampleProducts();
+      showToast(`Removed ${typeof count === 'number' ? count : 'all'} sample products`, 'success');
+    } catch {
+      showToast('Failed to remove sample products. Please try again.', 'error');
+    } finally {
+      setRemovingSamples(false);
     }
   };
 
@@ -140,12 +158,28 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Library className="w-5 h-5 text-indigo-600" />
-        <h2 className="text-xl font-semibold text-gray-800">Product Library</h2>
-        <span className="text-sm text-gray-500">
-          ({filteredAndSortedTemplates.length} of {templates.length} items)
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <Library className="w-5 h-5 text-indigo-600" />
+          <h2 className="text-xl font-semibold text-gray-800">Product Library</h2>
+          <span className="text-sm text-gray-500">
+            ({filteredAndSortedTemplates.length} of {templates.length} items)
+          </span>
+        </div>
+        {sampleCount > 0 && (
+          <button
+            onClick={handleRemoveSamples}
+            disabled={removingSamples}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-md border border-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {removingSamples ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <PackageX className="w-4 h-4" />
+            )}
+            Remove all sample products ({sampleCount})
+          </button>
+        )}
       </div>
 
       {/* Search and Filter */}
@@ -291,6 +325,11 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
                   {(template.unit ?? 'stem') === 'bunch' && (
                     <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800 ml-1">
                       per bunch
+                    </span>
+                  )}
+                  {template.isSample && (
+                    <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 ml-1">
+                      Sample
                     </span>
                   )}
                 </div>

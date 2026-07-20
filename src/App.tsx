@@ -233,6 +233,7 @@ function App() {
     saveProductTemplate,
     updateProductTemplate,
     deleteProductTemplate,
+    deleteSampleProducts,
     saveMarkupSettings,
     saveOrder,
     updateOrder,
@@ -580,6 +581,7 @@ function App() {
               markupSettings={markupSettings}
               onUpdateTemplate={updateProductTemplate}
               onDeleteTemplate={deleteProductTemplate}
+              onDeleteSampleProducts={deleteSampleProducts}
             />
             <LowStockAlert
               templates={productTemplates}

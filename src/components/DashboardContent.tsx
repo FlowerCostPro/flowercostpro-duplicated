@@ -337,20 +337,20 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
           ) : (
             <>
               <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="font-medium text-green-800 mb-2">1. Configure Settings</div>
-                <p className="text-sm text-green-700">Start here: Set your markup percentages and store information</p>
+                <div className="font-medium text-green-800 mb-2">1. Try it now — build an arrangement to a $75 budget with the sample products</div>
+                <p className="text-sm text-green-700">Head to Create Order and add sample items to see real-time cost, markup, and profit tracking in action</p>
               </div>
               <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="font-medium text-blue-800 mb-2">2. Build Product Library</div>
-                <p className="text-sm text-blue-700">Add your flowers, vases, and accessories with costs and inventory</p>
+                <div className="font-medium text-blue-800 mb-2">2. Configure Settings</div>
+                <p className="text-sm text-blue-700">Set your markup percentages and store information</p>
               </div>
               <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                <div className="font-medium text-purple-800 mb-2">3. Create Recipes</div>
-                <p className="text-sm text-purple-700">Optional: Save your best arrangements as reusable recipes</p>
+                <div className="font-medium text-purple-800 mb-2">3. Build Product Library</div>
+                <p className="text-sm text-purple-700">Add your flowers, vases, and accessories with costs and inventory</p>
               </div>
               <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <div className="font-medium text-yellow-800 mb-2">4. Start Creating Orders</div>
-                <p className="text-sm text-yellow-700">Begin making arrangements with automatic profit tracking</p>
+                <div className="font-medium text-yellow-800 mb-2">4. Create Recipes</div>
+                <p className="text-sm text-yellow-700">Optional: Save your best arrangements as reusable recipes</p>
               </div>
             </>
           )}
