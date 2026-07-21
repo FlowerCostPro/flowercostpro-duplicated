@@ -200,11 +200,12 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       );
 
       if (template) {
-        const isBunch = (template.unit ?? 'stem') === 'bunch';
+        const isBunch = (template.unit ?? 'stem') === 'bunch' || ingredient.type === 'bunch';
+        const divisor = isBunch ? (ingredient.portionDivisor ?? 1) : 1;
         // Use pre-computed retailPrice when available (staff templates from secure RPC)
         const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[isBunch ? 'bunch' : ingredient.type] * 100) / 100;
-        const retailPrice = fullRetail;
-        const portionWholesale = Math.round((template.wholesaleCost / (isBunch ? 1 : 1)) * 100) / 100;
+        const retailPrice = Math.round((fullRetail / divisor) * 100) / 100;
+        const portionWholesale = Math.round((template.wholesaleCost / divisor) * 100) / 100;
         const totalWholesale = isBunch ? portionWholesale : template.wholesaleCost * ingredient.quantity;
         const totalRetail = isBunch ? retailPrice : retailPrice * ingredient.quantity;
 
@@ -215,8 +216,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
           wholesaleCost: isBunch ? portionWholesale : template.wholesaleCost,
           quantity: isBunch ? 1 : ingredient.quantity,
           type: ingredient.type,
-          unit: template.unit ?? 'stem',
-          portionDivisor: isBunch ? 1 : undefined,
+          unit: template.unit ?? (isBunch ? 'bunch' : 'stem'),
+          portionDivisor: isBunch ? divisor : undefined,
           retailPrice,
           totalWholesale,
           totalRetail

@@ -1,6 +1,6 @@
 import React, { useState, ChangeEvent } from 'react';
 import { BookOpen, Plus, Calculator, CreditCard as Edit2, Trash2, ExternalLink, Save, X } from 'lucide-react';
-import { ArrangementRecipe, RecipeIngredient, ProductTemplate, MarkupSettings } from '../types/Product';
+import { ArrangementRecipe, RecipeIngredient, ProductTemplate, MarkupSettings, BunchPortion } from '../types/Product';
 import { useToast } from './Toast';
 
 interface ArrangementRecipesProps {
@@ -46,6 +46,7 @@ const ArrangementRecipes = ({
     name: '',
     quantity: '1',
     type: 'stem' as const,
+    portionDivisor: 1 as BunchPortion,
     notes: ''
   });
 
@@ -53,6 +54,7 @@ const ArrangementRecipes = ({
     name: '',
     quantity: '1',
     type: 'stem' as const,
+    portionDivisor: 1 as BunchPortion,
     notes: ''
   });
 
@@ -69,10 +71,15 @@ const ArrangementRecipes = ({
       );
 
       if (template) {
-        const wholesaleCost = template.wholesaleCost * ingredient.quantity;
-        const markup = markupSettings[ingredient.type];
-        const retailCost = Math.round(template.wholesaleCost * markup * 100) / 100 * ingredient.quantity;
-        
+        const isBunch = ingredient.type === 'bunch' || (template.unit ?? 'stem') === 'bunch';
+        const divisor = isBunch ? (ingredient.portionDivisor ?? 1) : 1;
+        const markup = markupSettings[isBunch ? 'bunch' : ingredient.type];
+        const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * markup * 100) / 100;
+        const portionWholesale = Math.round((template.wholesaleCost / divisor) * 100) / 100;
+        const portionRetail = Math.round((fullRetail / divisor) * 100) / 100;
+        const wholesaleCost = isBunch ? portionWholesale : template.wholesaleCost * ingredient.quantity;
+        const retailCost = isBunch ? portionRetail : portionRetail * ingredient.quantity;
+
         totalWholesale += wholesaleCost;
         totalRetail += retailCost;
       } else {
@@ -104,6 +111,7 @@ const ArrangementRecipes = ({
         name: newIngredient.name,
         quantity: parseInt(newIngredient.quantity),
         type: newIngredient.type,
+        portionDivisor: newIngredient.type === 'bunch' ? newIngredient.portionDivisor : undefined,
         notes: newIngredient.notes || undefined
       }]
     });
@@ -112,6 +120,7 @@ const ArrangementRecipes = ({
       name: '',
       quantity: '1',
       type: 'stem',
+      portionDivisor: 1,
       notes: ''
     });
   };
@@ -227,6 +236,7 @@ const ArrangementRecipes = ({
         name: editIngredient.name,
         quantity: parseInt(editIngredient.quantity),
         type: editIngredient.type,
+        portionDivisor: editIngredient.type === 'bunch' ? editIngredient.portionDivisor : undefined,
         notes: editIngredient.notes || undefined
       }]
     });
@@ -235,6 +245,7 @@ const ArrangementRecipes = ({
       name: '',
       quantity: '1',
       type: 'stem',
+      portionDivisor: 1,
       notes: ''
     });
   };
@@ -260,12 +271,33 @@ const ArrangementRecipes = ({
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'stem': return 'bg-green-100 text-green-800';
+      case 'bunch': return 'bg-teal-100 text-teal-800';
       case 'vase': return 'bg-blue-100 text-blue-800';
       case 'accessory': return 'bg-purple-100 text-purple-800';
       case 'other': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const PORTION_LABELS: Record<number, string> = { 1: 'Full', 2: '½', 3: '⅓', 4: '¼' };
+
+  const renderPortionSelector = (
+    value: BunchPortion,
+    onChange: (v: BunchPortion) => void,
+    accent: string
+  ) => (
+    <select
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value) as BunchPortion)}
+      className={`px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 ${accent}`}
+      title="Portion of a bunch"
+    >
+      <option value={1}>Full bunch</option>
+      <option value={2}>½ bunch</option>
+      <option value={3}>⅓ bunch</option>
+      <option value={4}>¼ bunch</option>
+    </select>
+  );
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -403,10 +435,16 @@ const ArrangementRecipes = ({
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 <option value="stem">Stem</option>
+                <option value="bunch">Bunch</option>
                 <option value="vase">Vase</option>
                 <option value="accessory">Accessory</option>
                 <option value="other">Other</option>
               </select>
+              {newIngredient.type === 'bunch' && renderPortionSelector(
+                newIngredient.portionDivisor,
+                (v) => setNewIngredient({ ...newIngredient, portionDivisor: v }),
+                'focus:ring-emerald-500'
+              )}
               <input
                 type="text"
                 value={newIngredient.notes}
@@ -432,6 +470,9 @@ const ArrangementRecipes = ({
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(ingredient.type)}`}>
                         {ingredient.type}
                       </span>
+                      {ingredient.type === 'bunch' && ingredient.portionDivisor && ingredient.portionDivisor !== 1 && (
+                        <span className="text-xs text-teal-700 font-medium">{PORTION_LABELS[ingredient.portionDivisor]} bunch</span>
+                      )}
                       {ingredient.notes && (
                         <span className="text-sm text-gray-500">({ingredient.notes})</span>
                       )}
@@ -584,10 +625,16 @@ const ArrangementRecipes = ({
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="stem">Stem</option>
+                <option value="bunch">Bunch</option>
                 <option value="vase">Vase</option>
                 <option value="accessory">Accessory</option>
                 <option value="other">Other</option>
               </select>
+              {editIngredient.type === 'bunch' && renderPortionSelector(
+                editIngredient.portionDivisor,
+                (v) => setEditIngredient({ ...editIngredient, portionDivisor: v }),
+                'focus:ring-blue-500'
+              )}
               <input
                 type="text"
                 value={editIngredient.notes}
@@ -613,6 +660,9 @@ const ArrangementRecipes = ({
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(ingredient.type)}`}>
                         {ingredient.type}
                       </span>
+                      {ingredient.type === 'bunch' && ingredient.portionDivisor && ingredient.portionDivisor !== 1 && (
+                        <span className="text-xs text-teal-700 font-medium">{PORTION_LABELS[ingredient.portionDivisor]} bunch</span>
+                      )}
                       {ingredient.notes && (
                         <span className="text-sm text-gray-500">({ingredient.notes})</span>
                       )}
@@ -754,6 +804,9 @@ const ArrangementRecipes = ({
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(ingredient.type)}`}>
                             {ingredient.type}
                           </span>
+                          {ingredient.type === 'bunch' && ingredient.portionDivisor && ingredient.portionDivisor !== 1 && (
+                            <span className="text-xs text-teal-700 font-medium">{PORTION_LABELS[ingredient.portionDivisor]} bunch</span>
+                          )}
                           {ingredient.notes && (
                             <span className="text-gray-500">({ingredient.notes})</span>
                           )}

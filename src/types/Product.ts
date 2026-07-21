@@ -67,7 +67,8 @@ export interface ArrangementRecipe {
 export interface RecipeIngredient {
   name: string;
   quantity: number;
-  type: 'stem' | 'vase' | 'accessory' | 'other';
+  type: 'stem' | 'vase' | 'accessory' | 'other' | 'bunch';
+  portionDivisor?: BunchPortion;
   notes?: string;
 }
 
