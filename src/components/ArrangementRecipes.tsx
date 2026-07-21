@@ -183,9 +183,10 @@ const ArrangementRecipes = ({
       });
       setShowAddForm(false);
       showToast('Recipe saved successfully!', 'success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating recipe:', error);
-      showToast('Error saving recipe. Please check your data and try again.', 'error');
+      const msg = error?.message || error?.error_description || 'Please check your data and try again.';
+      showToast(`Error saving recipe: ${msg}`, 'error');
     } finally {
       setSaving(false);
     }
@@ -226,9 +227,10 @@ const ArrangementRecipes = ({
       await onUpdateRecipe(editingRecipe!, updates);
       setEditingRecipe(null);
       showToast('Recipe updated successfully!', 'success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating recipe:', error);
-      showToast('Error updating recipe. Please try again.', 'error');
+      const msg = error?.message || error?.error_description || 'Please try again.';
+      showToast(`Error updating recipe: ${msg}`, 'error');
     } finally {
       setSaving(false);
     }
