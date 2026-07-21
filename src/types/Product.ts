@@ -51,6 +51,8 @@ export interface OrderRecord {
   staffId?: string;
   customerPrice?: number | null;
   laborAmount?: number | null;
+  pricingProfileId?: string | null;
+  pricingProfileName?: string | null;
 }
 
 export interface ArrangementRecipe {
@@ -70,6 +72,24 @@ export interface RecipeIngredient {
   type: 'stem' | 'vase' | 'accessory' | 'other' | 'bunch';
   portionDivisor?: BunchPortion;
   notes?: string;
+}
+
+export interface PricingProfile {
+  id: string;
+  name: string;
+  stem: number;
+  vase: number;
+  accessory: number;
+  other: number;
+  bunch: number;
+  laborPercent?: number | null;
+  isDefault: boolean;
+  sortOrder: number;
+}
+
+export interface StaffPricingProfile {
+  id: string;
+  name: string;
 }
 
 export interface POSSettings {

@@ -180,6 +180,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
                     <div className="text-sm text-gray-500">
                       {order.date.toLocaleDateString()} • {order.products.length} items
                       {order.staffName && ` • by ${order.staffName}`}
+                      {order.pricingProfileName && ` • ${order.pricingProfileName}`}
                     </div>
                   </div>
                   <div className="text-right">

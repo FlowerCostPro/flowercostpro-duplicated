@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { ProductTemplate, MarkupSettings, OrderRecord, ArrangementRecipe, POSSettings, Product } from '../types/Product';
+import { ProductTemplate, MarkupSettings, OrderRecord, ArrangementRecipe, POSSettings, Product, PricingProfile, StaffPricingProfile } from '../types/Product';
 
 const DEFAULT_MARKUP: MarkupSettings = {
   stem: 2.5,
@@ -42,6 +42,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     storeName: '',
     isConfigured: false
   });
+  const [pricingProfiles, setPricingProfiles] = useState<PricingProfile[]>([]);
+  const [staffPricingProfiles, setStaffPricingProfiles] = useState<StaffPricingProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadProfile = async () => {
@@ -189,6 +191,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           staffId: order.staff_id || undefined,
           customerPrice: order.customer_price != null ? Number(order.customer_price) : null,
           laborAmount: order.labor_amount != null ? Number(order.labor_amount) : undefined,
+          pricingProfileId: order.pricing_profile_id || null,
           profit: 0
         }));
         setSavedOrders(orders);
@@ -223,7 +226,9 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         staffName: order.staff_name || undefined,
         staffId: order.staff_id || undefined,
         customerPrice: order.customer_price != null ? Number(order.customer_price) : null,
-        laborAmount: order.labor_amount != null ? Number(order.labor_amount) : null
+        laborAmount: order.labor_amount != null ? Number(order.labor_amount) : null,
+        pricingProfileId: order.pricing_profile_id || null,
+        pricingProfileName: order.pricing_profile_name || null
       }));
 
       setSavedOrders(orders);
@@ -263,6 +268,40 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     } catch (error: any) {
       console.error('Error loading arrangement recipes:', error);
       setError(error.message);
+    }
+  };
+
+  // Load pricing profiles
+  const loadPricingProfiles = async () => {
+    if (!dataUserId) return;
+
+    try {
+      // Staff: only get id + name — never markup or labor values
+      if (ownerId && ownerId !== userId) {
+        const { data, error } = await supabase.rpc('get_staff_pricing_profiles');
+        if (error) throw error;
+        setStaffPricingProfiles((data || []).map((p: any) => ({ id: p.id, name: p.name })));
+        return;
+      }
+
+      // Owner: full profile data
+      const { data, error } = await supabase.rpc('get_owner_pricing_profiles');
+      if (error) throw error;
+      const profiles: PricingProfile[] = (data || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        stem: Number(p.stem),
+        vase: Number(p.vase),
+        accessory: Number(p.accessory),
+        other: Number(p.other),
+        bunch: Number(p.bunch),
+        laborPercent: p.labor_percent != null ? Number(p.labor_percent) : null,
+        isDefault: Boolean(p.is_default),
+        sortOrder: Number(p.sort_order)
+      }));
+      setPricingProfiles(profiles);
+    } catch (error: any) {
+      console.error('Error loading pricing profiles:', error);
     }
   };
 
@@ -426,7 +465,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           loadMarkupSettings(),
           loadSavedOrders(),
           loadArrangementRecipes(),
-          loadPosSettings()
+          loadPosSettings(),
+          loadPricingProfiles()
         ]),
         timeout
       ]);
@@ -724,7 +764,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           p_staff_id: order.staffId || null,
           p_customer_budget: order.customerPrice ?? null,
           p_photo: order.photo || null,
-          p_products: products
+          p_products: products,
+          p_pricing_profile_id: order.pricingProfileId ?? null
         });
 
         if (rpcError) throw rpcError;
@@ -767,7 +808,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         p_staff_id: order.staffId || null,
         p_customer_price: order.customerPrice ?? null,
         p_labor_amount: order.laborAmount ?? null,
-        p_products: productsJson
+        p_products: productsJson,
+        p_pricing_profile_id: order.pricingProfileId ?? null
       });
 
       if (orderError) throw orderError;
@@ -912,7 +954,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         p_notes: updatedOrder.notes || null,
         p_staff_name: updatedOrder.staffName || null,
         p_staff_id: updatedOrder.staffId || null,
-        p_products: productsJson
+        p_products: productsJson,
+        p_pricing_profile_id: updatedOrder.pricingProfileId ?? null
       });
 
       if (orderError) {
@@ -1116,6 +1159,51 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     loadAllData();
   }, [userId, dataUserId]);
 
+  // Pricing profile CRUD (owner only)
+  const savePricingProfile = async (profile: Partial<PricingProfile> & { name: string }) => {
+    if (!userId) return;
+
+    try {
+      const { data, error } = await supabase.rpc('save_owner_pricing_profile', {
+        p_id: profile.id ?? null,
+        p_name: profile.name,
+        p_stem: profile.stem ?? null,
+        p_vase: profile.vase ?? null,
+        p_accessory: profile.accessory ?? null,
+        p_other: profile.other ?? null,
+        p_bunch: profile.bunch ?? null,
+        p_labor_percent: profile.laborPercent ?? null,
+        p_is_default: profile.isDefault ?? false,
+        p_sort_order: profile.sortOrder ?? null
+      });
+
+      if (error) throw error;
+
+      await loadPricingProfiles();
+      return data;
+    } catch (error: any) {
+      console.error('Error saving pricing profile:', error);
+      throw error;
+    }
+  };
+
+  const deletePricingProfile = async (profileId: string) => {
+    if (!userId) return;
+
+    try {
+      const { error } = await supabase.rpc('delete_owner_pricing_profile', {
+        p_profile_id: profileId
+      });
+
+      if (error) throw error;
+
+      await loadPricingProfiles();
+    } catch (error: any) {
+      console.error('Error deleting pricing profile:', error);
+      throw error;
+    }
+  };
+
   return {
     profile,
     productTemplates,
@@ -1123,6 +1211,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     savedOrders,
     arrangementRecipes,
     posSettings,
+    pricingProfiles,
+    staffPricingProfiles,
     loading,
     error,
     // Save functions
@@ -1138,6 +1228,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     updateArrangementRecipe,
     deleteArrangementRecipe,
     savePosSettings,
+    savePricingProfile,
+    deletePricingProfile,
     // Reload function
     loadAllData
   };

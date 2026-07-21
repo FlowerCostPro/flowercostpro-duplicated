@@ -241,7 +241,11 @@ function App() {
     saveArrangementRecipe,
     updateArrangementRecipe,
     deleteArrangementRecipe,
-    savePosSettings
+    savePosSettings,
+    pricingProfiles,
+    staffPricingProfiles,
+    savePricingProfile,
+    deletePricingProfile
   } = useSupabaseData(user?.id || null, ownerId);
 
   useEffect(() => {
@@ -556,6 +560,8 @@ function App() {
             onSaveOrder={saveOrder}
             onOrderSaved={handleOrderSaved}
             onUpdateOrder={handleUpdateOrder}
+            pricingProfiles={isStaff ? undefined : pricingProfiles}
+            staffPricingProfiles={isStaff ? staffPricingProfiles : undefined}
             onOrderChange={handleOrderChange}
             userRole={accountRole === 'staff' ? 'staff' : 'owner'}
             posSettings={posSettings}
@@ -615,6 +621,7 @@ function App() {
           <StaffSavedOrders
             orders={savedOrders}
             selectedOrderId={selectedOrderId}
+            staffPricingProfiles={staffPricingProfiles}
           />
         );
       case 'analytics':
@@ -634,6 +641,9 @@ function App() {
             <MarkupSettingsComponent
               markupSettings={markupSettings}
               onMarkupChange={saveMarkupSettings}
+              pricingProfiles={pricingProfiles}
+              onSavePricingProfile={savePricingProfile}
+              onDeletePricingProfile={deletePricingProfile}
             />
             <POSConfiguration
               posSettings={posSettings}

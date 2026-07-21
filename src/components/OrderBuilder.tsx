@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { ShoppingCart, Plus, Minus, Search, X, Camera, RefreshCw } from 'lucide-react';
-import { Product, MarkupSettings, ProductTemplate, OrderRecord, ArrangementRecipe, POSSettings, BunchPortion } from '../types/Product';
+import { Product, MarkupSettings, ProductTemplate, OrderRecord, ArrangementRecipe, POSSettings, BunchPortion, PricingProfile, StaffPricingProfile } from '../types/Product';
 import { useToast } from './Toast';
 import { supabase } from '../lib/supabase';
 
@@ -15,6 +15,8 @@ interface OrderBuilderProps {
   userRole?: 'owner' | 'manager' | 'staff';
   posSettings: POSSettings;
   initialOrder?: OrderRecord;
+  pricingProfiles?: PricingProfile[];
+  staffPricingProfiles?: StaffPricingProfile[];
 }
 
 interface OrderItem extends Product {
@@ -43,7 +45,9 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   onOrderSaved,
   userRole = 'owner',
   posSettings,
-  initialOrder
+  initialOrder,
+  pricingProfiles,
+  staffPricingProfiles
 }) => {
   const { showToast } = useToast();
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -66,6 +70,85 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  // Pricing profile selection (occasion-based pricing)
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [profileTemplates, setProfileTemplates] = useState<ProductTemplate[] | null>(null);
+  const [profileTemplatesLoading, setProfileTemplatesLoading] = useState(false);
+
+  // Determine which profiles to show: staff see only id+name, owners see full data
+  const availableProfiles = userRole === 'staff' ? staffPricingProfiles : pricingProfiles;
+
+  // Auto-select the default profile (or first profile) when profiles are loaded
+  useEffect(() => {
+    if (!availableProfiles || availableProfiles.length === 0) return;
+    if (selectedProfileId && availableProfiles.some(p => p.id === selectedProfileId)) return;
+    const defaultProfile = (availableProfiles as any[]).find(p => p.is_default) || availableProfiles[0];
+    setSelectedProfileId(defaultProfile.id);
+  }, [availableProfiles, selectedProfileId]);
+
+  // For staff: when a profile is selected, fetch templates with that profile's markup applied
+  useEffect(() => {
+    if (userRole !== 'staff' || !selectedProfileId) {
+      setProfileTemplates(null);
+      return;
+    }
+    let cancelled = false;
+    setProfileTemplatesLoading(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_staff_product_templates_with_profile', {
+          p_profile_id: selectedProfileId
+        });
+        if (!cancelled) {
+          if (error) {
+            console.error('Error loading profile templates:', error);
+          } else if (data && Array.isArray(data)) {
+            const mapped: ProductTemplate[] = data.map((t: any) => ({
+              id: t.id,
+              name: t.name,
+              wholesaleCost: 0, // never exposed to staff
+              retailPrice: Number(t.retail_price),
+              type: t.type,
+              unit: t.unit,
+              inventoryCount: t.inventory_count != null ? Number(t.inventory_count) : undefined,
+              lowStockThreshold: t.low_stock_threshold != null ? Number(t.low_stock_threshold) : undefined,
+              lastUsed: t.last_used ? new Date(t.last_used) : new Date()
+            }));
+            setProfileTemplates(mapped);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching profile templates:', err);
+      } finally {
+        if (!cancelled) setProfileTemplatesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userRole, selectedProfileId]);
+
+  // The effective markup settings: if an owner has a profile selected, use its values;
+  // otherwise fall back to the passed-in markupSettings
+  const effectiveMarkup: MarkupSettings = React.useMemo(() => {
+    if (userRole !== 'staff' && pricingProfiles && selectedProfileId) {
+      const profile = pricingProfiles.find(p => p.id === selectedProfileId);
+      if (profile) {
+        return {
+          stem: profile.stem,
+          vase: profile.vase,
+          accessory: profile.accessory,
+          other: profile.other,
+          bunch: profile.bunch,
+          laborPercent: profile.laborPercent
+        };
+      }
+    }
+    return markupSettings;
+  }, [userRole, pricingProfiles, selectedProfileId, markupSettings]);
+
+  // The effective templates: for staff with a profile, use the profile-fetched templates;
+  // otherwise use the passed-in templates
+  const effectiveTemplates = profileTemplates || templates;
+
   // Load initial order data if editing
   useEffect(() => {
     if (initialOrder) {
@@ -78,7 +161,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
       // Convert products to OrderItems
       const items: OrderItem[] = initialOrder.products.map(product => {
-        const markup = markupSettings[product.type];
+        const markup = effectiveMarkup[product.type];
         const retailPrice = Math.round(product.wholesaleCost * markup * 100) / 100;
         const totalWholesale = product.wholesaleCost * product.quantity;
         const totalRetail = retailPrice * product.quantity;
@@ -99,43 +182,40 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     }
   }, [initialOrder, markupSettings]);
 
-  // For staff: fetch working budget from server whenever the customer budget changes.
+  // For staff: fetch working budget from server whenever the customer budget or profile changes.
   // The server applies the labor deduction without revealing the percentage.
   useEffect(() => {
     if (userRole !== 'staff') return;
     const val = parseFloat(customerBudget);
-    console.log('[BUDGET-DEBUG] useEffect fired. userRole:', userRole, 'customerBudget:', customerBudget, 'parsedVal:', val);
     if (!customerBudget || isNaN(val) || val <= 0) {
       setWorkingBudgetForStaff(null);
       setWorkingBudgetLoading(false);
       return;
     }
-    // Reset immediately so we don't use a stale working budget for the new input
     setWorkingBudgetForStaff(null);
     let cancelled = false;
     setWorkingBudgetLoading(true);
     const timer = setTimeout(async () => {
-      console.log('[BUDGET-DEBUG] Calling get_working_budget_for_staff with p_customer_budget:', val);
-      const { data, error } = await supabase.rpc('get_working_budget_for_staff', {
-        p_customer_budget: val
-      });
-      console.log('[BUDGET-DEBUG] RPC raw response — data:', JSON.stringify(data), 'error:', error);
+      const rpcName = selectedProfileId
+        ? 'get_working_budget_for_staff_with_profile'
+        : 'get_working_budget_for_staff';
+      const rpcParams = selectedProfileId
+        ? { p_customer_budget: val, p_profile_id: selectedProfileId }
+        : { p_customer_budget: val };
+      const { data, error } = await supabase.rpc(rpcName, rpcParams);
       if (!cancelled) {
         setWorkingBudgetLoading(false);
         if (error) {
-          console.error('[BUDGET-DEBUG] RPC error:', error);
+          console.error('Working budget RPC error:', error);
         } else if (data && Array.isArray(data) && data.length > 0) {
-          console.log('[BUDGET-DEBUG] Setting workingBudgetForStaff to:', Number(data[0].working_budget));
           setWorkingBudgetForStaff(Number(data[0].working_budget));
-        } else {
-          console.warn('[BUDGET-DEBUG] data is not a non-empty array:', data);
         }
       }
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [customerBudget, userRole]);
+  }, [customerBudget, userRole, selectedProfileId]);
   
-  const filteredTemplates = templates.filter((template: ProductTemplate) =>
+  const filteredTemplates = effectiveTemplates.filter((template: ProductTemplate) =>
     template.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
   );
 
@@ -148,7 +228,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     const divisor = isBunch ? (portionDivisor ?? 1) : 1;
 
     // Use pre-computed retailPrice when available (staff templates from secure RPC)
-    const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[isBunch ? 'bunch' : template.type] * 100) / 100;
+    const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * effectiveMarkup[isBunch ? 'bunch' : template.type] * 100) / 100;
     const retailPrice = isBunch ? Math.round((fullRetail / divisor) * 100) / 100 : fullRetail;
     const portionWholesale = Math.round((template.wholesaleCost / divisor) * 100) / 100;
     const totalWholesale = isBunch ? portionWholesale : template.wholesaleCost * quantity;
@@ -194,7 +274,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
     recipe.ingredients.forEach(ingredient => {
       // Try to find matching template
-      const template = templates.find((t: ProductTemplate) => 
+      const template = effectiveTemplates.find((t: ProductTemplate) =>
         t.name.toLowerCase().includes(ingredient.name.toLowerCase()) ||
         ingredient.name.toLowerCase().includes(t.name.toLowerCase())
       );
@@ -203,7 +283,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
         const isBunch = (template.unit ?? 'stem') === 'bunch' || ingredient.type === 'bunch';
         const divisor = isBunch ? (ingredient.portionDivisor ?? 1) : 1;
         // Use pre-computed retailPrice when available (staff templates from secure RPC)
-        const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[isBunch ? 'bunch' : ingredient.type] * 100) / 100;
+        const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * effectiveMarkup[isBunch ? 'bunch' : ingredient.type] * 100) / 100;
         const retailPrice = Math.round((fullRetail / divisor) * 100) / 100;
         const portionWholesale = Math.round((template.wholesaleCost / divisor) * 100) / 100;
         const totalWholesale = isBunch ? portionWholesale : template.wholesaleCost * ingredient.quantity;
@@ -411,7 +491,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
     // When labor is configured and a customer budget was entered, profit accounts for labor
     const budgetVal = customerBudget ? parseFloat(customerBudget) : null;
-    const laborPct = markupSettings.laborPercent ?? 0;
+    const laborPct = effectiveMarkup.laborPercent ?? 0;
     const laborAmount = (budgetVal && laborPct > 0) ? budgetVal * (laborPct / 100) : null;
     const customerPrice = budgetVal ?? null;
     const profit = customerPrice != null && laborAmount != null
@@ -441,6 +521,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       staffName: staffName || undefined,
       staffId: staffId || undefined,
       customerPrice,
+      pricingProfileId: selectedProfileId,
       laborAmount
     };
 
@@ -506,6 +587,31 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
           </span>
         )}
       </div>
+
+      {/* Occasion / Pricing Profile Selector */}
+      {availableProfiles && availableProfiles.length > 0 && (
+        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 mb-6">
+          <label className="text-sm font-medium text-emerald-800 whitespace-nowrap">
+            Occasion
+          </label>
+          <select
+            value={selectedProfileId || ''}
+            onChange={(e) => setSelectedProfileId(e.target.value || null)}
+            className="px-3 py-1.5 border border-emerald-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+          >
+            {availableProfiles.map((profile) => (
+              <option key={profile.id} value={profile.id}>
+                {profile.name}{(profile as any).is_default ? ' (default)' : ''}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-emerald-600">
+            {userRole === 'staff'
+              ? 'Pricing is automatically applied based on the occasion'
+              : 'Selects which markup and labor settings apply to this arrangement'}
+          </span>
+        </div>
+      )}
 
       {/* Budget input — owner/manager */}
       {userRole !== 'staff' && (
@@ -683,7 +789,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                 const isLowStock = hasInventory && template.lowStockThreshold !== undefined && template.inventoryCount! <= template.lowStockThreshold!;
                 const isOutOfStock = hasInventory && template.inventoryCount === 0;
                 const isBunch = (template.unit ?? 'stem') === 'bunch';
-                const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[isBunch ? 'bunch' : template.type] * 100) / 100;
+                const fullRetail = template.retailPrice ?? Math.round(template.wholesaleCost * effectiveMarkup[isBunch ? 'bunch' : template.type] * 100) / 100;
 
                 return (
                   <div
@@ -884,7 +990,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
           {/* Budget Tracker */}
           {customerBudget && parseFloat(customerBudget) > 0 && (() => {
             const fullBudget = parseFloat(customerBudget);
-            const laborPct = markupSettings.laborPercent ?? 0;
+            const laborPct = effectiveMarkup.laborPercent ?? 0;
             // Staff: use server-computed working budget (labor deducted server-side, never revealed)
             // Fall back to fullBudget while the RPC response is still in-flight
             const workingBudget = userRole === 'staff'

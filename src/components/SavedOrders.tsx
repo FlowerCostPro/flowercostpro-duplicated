@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy } from 'lucide-react';
+import { Archive, Eye, Trash2, Calendar, DollarSign, Search, Import as SortAsc, CreditCard as Edit, Copy, Tag } from 'lucide-react';
 import { OrderRecord } from '../types/Product';
 import { buildPOSText } from '../lib/posText';
 import { copyTextAndPhoto } from '../lib/clipboardImage';
@@ -220,6 +220,12 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                 <div className="text-xs text-gray-500">
                   {order.products.length} items • ${(order.customerPrice ?? order.totalRetail).toFixed(2)} total
                 </div>
+                {order.pricingProfileName && (
+                  <div className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full w-fit">
+                    <Tag className="w-3 h-3" />
+                    {order.pricingProfileName}
+                  </div>
+                )}
               </div>
 
               <button
@@ -304,6 +310,9 @@ const SavedOrders: React.FC<SavedOrdersProps> = ({ orders, onDeleteOrder, onEdit
                       <div><strong>Name:</strong> {selectedOrder.staffName}</div>
                       {selectedOrder.staffId && (
                         <div><strong>Employee ID:</strong> {selectedOrder.staffId}</div>
+                      )}
+                      {selectedOrder.pricingProfileName && (
+                        <div><strong>Occasion:</strong> {selectedOrder.pricingProfileName}</div>
                       )}
                     </div>
                   </div>

@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Archive, Eye, Calendar, Copy, Search, Import as SortAsc } from 'lucide-react';
-import { OrderRecord } from '../types/Product';
+import { OrderRecord, StaffPricingProfile } from '../types/Product';
 import { buildPOSText } from '../lib/posText';
 import { copyTextAndPhoto } from '../lib/clipboardImage';
 
 interface StaffSavedOrdersProps {
   orders: OrderRecord[];
   selectedOrderId?: string | null;
+  staffPricingProfiles?: StaffPricingProfile[];
 }
 
-const StaffSavedOrders: React.FC<StaffSavedOrdersProps> = ({ orders, selectedOrderId }) => {
+const StaffSavedOrders: React.FC<StaffSavedOrdersProps> = ({ orders, selectedOrderId, staffPricingProfiles }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name'>('date');
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
@@ -192,6 +193,15 @@ const StaffSavedOrders: React.FC<StaffSavedOrdersProps> = ({ orders, selectedOrd
                 {order.staffName && (
                   <div className="text-gray-600">
                     Designer: {order.staffName}
+                  </div>
+                )}
+
+                {order.pricingProfileId && (
+                  <div className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full w-fit">
+                    {order.pricingProfileId && (() => {
+                      const profile = staffPricingProfiles?.find(p => p.id === order.pricingProfileId);
+                      return profile ? profile.name : 'Custom';
+                    })()}
                   </div>
                 )}
 
