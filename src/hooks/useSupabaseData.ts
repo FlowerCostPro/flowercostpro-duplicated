@@ -253,6 +253,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
           name: ingredient.name,
           quantity: ingredient.quantity,
           type: ingredient.type,
+          portionDivisor: ingredient.portionDivisor ?? 1,
           notes: ingredient.notes || undefined
         })),
         lastUpdated: new Date(recipe.updated_at)
@@ -969,6 +970,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         name: ingredient.name,
         quantity: ingredient.quantity,
         type: ingredient.type,
+        portionDivisor: ingredient.portionDivisor ?? 1,
         notes: ingredient.notes
       }));
 
@@ -1007,6 +1009,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
             name: ingredient.name,
             quantity: ingredient.quantity,
             type: ingredient.type,
+            portionDivisor: ingredient.portionDivisor ?? 1,
             notes: ingredient.notes
           }))
         : null;

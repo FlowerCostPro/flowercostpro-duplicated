@@ -143,11 +143,16 @@ const ArrangementRecipes = ({
     }
   };
 
-  const saveRecipe = () => {
+  const [saving, setSaving] = useState(false);
+
+  const saveRecipe = async () => {
     if (!newRecipe.name || newRecipe.ingredients.length === 0) {
       showToast('Please enter a recipe name and add at least one ingredient.', 'warning');
       return;
     }
+
+    if (saving) return;
+    setSaving(true);
 
     try {
       const recipe: ArrangementRecipe = {
@@ -165,8 +170,8 @@ const ArrangementRecipes = ({
         lastUpdated: new Date()
       };
 
-      onSaveRecipe(recipe);
-      
+      await onSaveRecipe(recipe);
+
       // Reset form only after successful save
       setNewRecipe({
         name: '',
@@ -177,9 +182,12 @@ const ArrangementRecipes = ({
         ingredients: []
       });
       setShowAddForm(false);
+      showToast('Recipe saved successfully!', 'success');
     } catch (error) {
       console.error('Error creating recipe:', error);
       showToast('Error saving recipe. Please check your data and try again.', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -195,24 +203,35 @@ const ArrangementRecipes = ({
     });
   };
 
-  const saveEditRecipe = () => {
+  const saveEditRecipe = async () => {
     if (!editRecipe.name || editRecipe.ingredients.length === 0) {
       showToast('Please enter a recipe name and add at least one ingredient.', 'warning');
       return;
     }
 
-    const updates: Partial<ArrangementRecipe> = {
-      name: editRecipe.name,
-      description: editRecipe.description || undefined,
-      websitePrice: parseFloat(editRecipe.websitePrice) || 0,
-      websiteUrl: editRecipe.websiteUrl || undefined,
-      photo: editRecipe.photo || undefined,
-      ingredients: editRecipe.ingredients,
-      lastUpdated: new Date()
-    };
+    if (saving) return;
+    setSaving(true);
 
-    onUpdateRecipe(editingRecipe!, updates);
-    setEditingRecipe(null);
+    try {
+      const updates: Partial<ArrangementRecipe> = {
+        name: editRecipe.name,
+        description: editRecipe.description || undefined,
+        websitePrice: parseFloat(editRecipe.websitePrice) || 0,
+        websiteUrl: editRecipe.websiteUrl || undefined,
+        photo: editRecipe.photo || undefined,
+        ingredients: editRecipe.ingredients,
+        lastUpdated: new Date()
+      };
+
+      await onUpdateRecipe(editingRecipe!, updates);
+      setEditingRecipe(null);
+      showToast('Recipe updated successfully!', 'success');
+    } catch (error) {
+      console.error('Error updating recipe:', error);
+      showToast('Error updating recipe. Please try again.', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const cancelEditRecipe = () => {
@@ -492,9 +511,10 @@ const ArrangementRecipes = ({
           <div className="flex gap-3">
             <button
               onClick={saveRecipe}
-              className="bg-emerald-600 text-white px-6 py-2 rounded-md hover:bg-emerald-700 transition-colors"
+              disabled={saving}
+              className="bg-emerald-600 text-white px-6 py-2 rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save Recipe
+              {saving ? 'Saving...' : 'Save Recipe'}
             </button>
             <button
               onClick={() => setShowAddForm(false)}
@@ -682,10 +702,11 @@ const ArrangementRecipes = ({
           <div className="flex gap-3">
             <button
               onClick={saveEditRecipe}
-              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+              disabled={saving}
+              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4" />
-              Save Changes
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
             <button
               onClick={cancelEditRecipe}
