@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import AdminDashboard from './components/AdminDashboard';
 import LandingPage from './components/LandingPage';
@@ -205,6 +205,7 @@ function App() {
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState('overview');
   const [isPasswordReset, setIsPasswordReset] = useState(false);
+  const passwordResetRef = useRef(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [currentOrderProducts, setCurrentOrderProducts] = useState<Product[]>([]);
@@ -268,9 +269,32 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname);
     }
 
+    // Detect recovery URL from password reset email link.
+    // Supabase fires PASSWORD_RECOVERY then INITIAL_SESSION with a valid session.
+    // The INITIAL_SESSION handler would route to the dashboard and clobber the
+    // reset screen, so we detect the recovery URL up front and gate the handler.
+    if (params.get('type') === 'recovery') {
+      passwordResetRef.current = true;
+      setIsPasswordReset(true);
+      setCurrentView('auth');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          passwordResetRef.current = true;
+          setIsPasswordReset(true);
+          setCurrentView('auth');
+          return;
+        }
         if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session?.user) {
+          // Don't route to dashboard if the user arrived via a password reset link.
+          // They must submit a new password first.
+          if (passwordResetRef.current) {
+            setUser(session.user);
+            return;
+          }
           setUser(session.user);
           setCurrentView('dashboard');
         } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
@@ -280,9 +304,6 @@ function App() {
           setCurrentView('landing');
           setSubscriptionStatus(null);
           setTrialEndsAt(null);
-        } else if (event === 'PASSWORD_RECOVERY') {
-          setIsPasswordReset(true);
-          setCurrentView('auth');
         }
       }
     );
@@ -324,8 +345,9 @@ function App() {
   };
 
   const handleAuthSuccess = () => {
-    setCurrentView('dashboard');
+    passwordResetRef.current = false;
     setIsPasswordReset(false);
+    setCurrentView('dashboard');
   };
 
   const handleBackToLanding = () => {
