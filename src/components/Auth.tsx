@@ -46,9 +46,10 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
           password: formData.password
         });
         if (error) throw error;
-        
+
         setMessage('Password updated successfully! You are now signed in.');
         onAuthSuccess();
+        return;
       }
 
       if (isSignUp) {

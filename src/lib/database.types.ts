@@ -318,7 +318,6 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
-          role: Database["public"]["Enums"]["user_role"]
           store_name: string | null
           updated_at: string
           stripe_customer_id: string | null
@@ -335,7 +334,6 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
-          role?: Database["public"]["Enums"]["user_role"]
           store_name?: string | null
           updated_at?: string
           stripe_customer_id?: string | null
@@ -352,7 +350,6 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["user_role"]
           store_name?: string | null
           updated_at?: string
           stripe_customer_id?: string | null
@@ -418,7 +415,6 @@ export type Database = {
     }
     Enums: {
       product_type: "stem" | "vase" | "accessory" | "other"
-      user_role: "owner" | "manager" | "staff"
     }
     CompositeTypes: {
       [_ in never]: never
