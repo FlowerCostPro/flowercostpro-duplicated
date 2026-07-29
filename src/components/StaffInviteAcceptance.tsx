@@ -1,5 +1,5 @@
 import React, { useState, useEffect, FormEvent } from 'react';
-import { Eye, EyeOff, UserPlus, Loader as Loader2, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Store } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, Loader as Loader2, CircleAlert as AlertCircle, Store } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface StaffInviteAcceptanceProps {
@@ -85,44 +85,34 @@ const StaffInviteAcceptance: React.FC<StaffInviteAcceptanceProps> = ({ token, on
 
     setSubmitting(true);
     try {
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: inviteInfo!.email,
-        password,
-        options: {
-          data: { full_name: fullName.trim() },
-        },
-      });
-
-      if (signUpError) throw signUpError;
-
-      const userId = signUpData.user?.id;
-      if (!userId) {
-        throw new Error('Account creation failed — no user ID returned.');
-      }
-
+      // Create the account server-side. The edge function validates the invite
+      // token and creates the auth user with account_role='staff' in one atomic
+      // operation. If the token is invalid, no account is created.
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-invite?action=accept`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/staff-invite?action=create`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           },
-          body: JSON.stringify({ token, userId }),
+          body: JSON.stringify({ token, password, fullName: fullName.trim() }),
         }
       );
 
       if (!res.ok) {
-        throw new Error('Your account was created but the invite could not be linked. Please contact the shop owner.');
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? 'Failed to create your staff account. Please contact the shop owner.');
       }
 
+      // Account created — sign in with the new credentials.
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: inviteInfo!.email,
         password,
       });
 
       if (signInError || !signInData?.user) {
-        setError('Account created and linked! Please sign in with your new credentials.');
+        setError('Account created! Please sign in with your new credentials.');
         setSubmitting(false);
         return;
       }
