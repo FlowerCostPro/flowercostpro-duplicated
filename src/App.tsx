@@ -270,14 +270,14 @@ function App() {
     }
 
     // Detect recovery URL from password reset email link.
-    // Supabase fires PASSWORD_RECOVERY then INITIAL_SESSION with a valid session.
-    // The INITIAL_SESSION handler would route to the dashboard and clobber the
-    // reset screen, so we detect the recovery URL up front and gate the handler.
+    // Set the ref so INITIAL_SESSION (which fires before PASSWORD_RECOVERY)
+    // doesn't route to the dashboard or landing page. Do NOT strip the URL
+    // here — Supabase's PKCE flow needs the code param to exchange for a
+    // recovery session. The URL is cleaned after PASSWORD_RECOVERY fires.
     if (params.get('type') === 'recovery') {
       passwordResetRef.current = true;
       setIsPasswordReset(true);
       setCurrentView('auth');
-      window.history.replaceState({}, '', window.location.pathname);
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -286,6 +286,8 @@ function App() {
           passwordResetRef.current = true;
           setIsPasswordReset(true);
           setCurrentView('auth');
+          // Code has been exchanged — safe to clean the URL now.
+          window.history.replaceState({}, '', window.location.pathname);
           return;
         }
         if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session?.user) {
@@ -298,6 +300,9 @@ function App() {
           setUser(session.user);
           setCurrentView('dashboard');
         } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
+          // During password reset, INITIAL_SESSION fires with no session before
+          // PASSWORD_RECOVERY fires. Don't route away from the auth screen.
+          if (passwordResetRef.current) return;
           setUser(null);
           setAccountRole(null);
           setOwnerId(null);
