@@ -12,6 +12,7 @@ import MarkupSettingsComponent from './components/MarkupSettings';
 import SavedOrders from './components/SavedOrders';
 import StaffSavedOrders from './components/StaffSavedOrders';
 import ArrangementRecipes from './components/ArrangementRecipes';
+import StaffArrangementRecipes from './components/StaffArrangementRecipes';
 import ProfitAnalytics from './components/ProfitAnalytics';
 import BusinessInsights from './components/BusinessInsights';
 import StaffTrainingMode from './components/StaffTrainingMode';
@@ -455,7 +456,7 @@ function App() {
     }
   };
 
-  const userName = user?.user_metadata?.full_name || profile?.full_name || (user ? 'User' : 'Demo User');
+  const userName = profile?.full_name || user?.user_metadata?.full_name || (user ? 'User' : 'Demo User');
   const storeName = profile?.store_name || posSettings?.storeName || 'Demo Flower Shop';
 
   // Sections that staff are completely forbidden from accessing
@@ -623,7 +624,9 @@ function App() {
           </div>
         );
       case 'recipes':
-        return (
+        return isStaff ? (
+          <StaffArrangementRecipes recipes={arrangementRecipes} />
+        ) : (
           <ArrangementRecipes
             recipes={arrangementRecipes}
             templates={productTemplates}

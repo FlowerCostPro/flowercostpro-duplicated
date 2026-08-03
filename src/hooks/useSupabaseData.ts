@@ -243,7 +243,11 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     if (!dataUserId) return;
 
     try {
-      const { data: recipesData, error: recipesError } = await supabase.rpc('get_owner_arrangement_recipes');
+      // Staff: use secure RPC — returns only staff-safe fields (no wholesale costs, markup, margin, labor)
+      const isStaff = ownerId && ownerId !== userId;
+      const { data: recipesData, error: recipesError } = isStaff
+        ? await supabase.rpc('get_staff_arrangement_recipes')
+        : await supabase.rpc('get_owner_arrangement_recipes');
 
       if (recipesError) throw recipesError;
 
