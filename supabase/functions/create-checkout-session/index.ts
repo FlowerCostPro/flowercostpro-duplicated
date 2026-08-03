@@ -174,6 +174,7 @@ Deno.serve(async (req: Request) => {
       subscription_data: {
         metadata: { supabase_user_id: userId },
       },
+      allow_promotion_codes: "true",
       success_url: `${origin}?checkout=success`,
       cancel_url: `${origin}?checkout=cancelled`,
     });
