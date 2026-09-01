@@ -909,62 +909,75 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     try {
       console.log('Starting order update for:', orderId);
 
-      // Update order - handle photo carefully
-      const updateData: any = {
-        name: updatedOrder.name,
-        total_wholesale: updatedOrder.totalWholesale,
-        total_retail: updatedOrder.totalRetail,
-        profit: updatedOrder.profit,
-        notes: updatedOrder.notes || null,
-        staff_name: updatedOrder.staffName || null,
-        staff_id: updatedOrder.staffId || null
-      };
-
-      // Only include photo if it's provided and not too large
-      if (updatedOrder.photo) {
-        // Check if photo is base64 and potentially too large
-        if (updatedOrder.photo.startsWith('data:image')) {
-          const photoSize = updatedOrder.photo.length;
-          console.log('Photo size:', photoSize, 'characters');
-
-          // Supabase can handle large text, but let's be cautious
-          if (photoSize > 5000000) { // ~5MB limit for base64
-            throw new Error('Photo is too large. Please use a smaller image (max 5MB).');
-          }
+      // Photo size check (applies to both owner and staff)
+      if (updatedOrder.photo && updatedOrder.photo.startsWith('data:image')) {
+        const photoSize = updatedOrder.photo.length;
+        console.log('Photo size:', photoSize, 'characters');
+        if (photoSize > 5000000) {
+          throw new Error('Photo is too large. Please use a smaller image (max 5MB).');
         }
-        updateData.photo = updatedOrder.photo;
-      } else {
-        updateData.photo = null;
       }
 
-      // Use RPC to update order + products atomically
-      const productsJson = updatedOrder.products.map(product => ({
-        name: product.name,
-        wholesale_cost: product.wholesaleCost,
-        quantity: product.quantity,
-        type: product.type,
-        unit: product.unit ?? 'stem',
-        portion_divisor: product.portionDivisor ?? null,
-        retail_price: product.retailPrice ?? null
-      }));
+      const isStaff = ownerId && ownerId !== userId;
 
-      const { error: orderError } = await supabase.rpc('update_owner_order', {
-        p_order_id: orderId,
-        p_name: updatedOrder.name,
-        p_total_wholesale: updatedOrder.totalWholesale,
-        p_total_retail: updatedOrder.totalRetail,
-        p_profit: updatedOrder.profit,
-        p_photo: updatedOrder.photo || null,
-        p_notes: updatedOrder.notes || null,
-        p_staff_name: updatedOrder.staffName || null,
-        p_staff_id: updatedOrder.staffId || null,
-        p_products: productsJson,
-        p_pricing_profile_id: updatedOrder.pricingProfileId ?? null
-      });
+      if (isStaff) {
+        // Staff: use secure RPC that recalculates wholesale/retail server-side
+        const productsJson = updatedOrder.products.map(product => ({
+          template_id: (product as any).templateId ?? null,
+          name: product.name,
+          quantity: product.quantity,
+          type: product.type,
+          unit: product.unit ?? 'stem',
+          portion_divisor: product.portionDivisor ?? null,
+          retail_price: product.retailPrice ?? null
+        }));
 
-      if (orderError) {
-        console.error('Order update error:', orderError);
-        throw orderError;
+        const { error: staffError } = await supabase.rpc('update_staff_order', {
+          p_order_id: orderId,
+          p_name: updatedOrder.name,
+          p_notes: updatedOrder.notes || null,
+          p_staff_name: updatedOrder.staffName || null,
+          p_staff_id: updatedOrder.staffId || null,
+          p_customer_budget: updatedOrder.customerPrice ?? null,
+          p_photo: updatedOrder.photo || null,
+          p_products: productsJson,
+          p_pricing_profile_id: updatedOrder.pricingProfileId ?? null
+        });
+
+        if (staffError) {
+          console.error('Staff order update error:', staffError);
+          throw staffError;
+        }
+      } else {
+        // Owner: use owner RPC with full wholesale/profit data
+        const productsJson = updatedOrder.products.map(product => ({
+          name: product.name,
+          wholesale_cost: product.wholesaleCost,
+          quantity: product.quantity,
+          type: product.type,
+          unit: product.unit ?? 'stem',
+          portion_divisor: product.portionDivisor ?? null,
+          retail_price: product.retailPrice ?? null
+        }));
+
+        const { error: orderError } = await supabase.rpc('update_owner_order', {
+          p_order_id: orderId,
+          p_name: updatedOrder.name,
+          p_total_wholesale: updatedOrder.totalWholesale,
+          p_total_retail: updatedOrder.totalRetail,
+          p_profit: updatedOrder.profit,
+          p_photo: updatedOrder.photo || null,
+          p_notes: updatedOrder.notes || null,
+          p_staff_name: updatedOrder.staffName || null,
+          p_staff_id: updatedOrder.staffId || null,
+          p_products: productsJson,
+          p_pricing_profile_id: updatedOrder.pricingProfileId ?? null
+        });
+
+        if (orderError) {
+          console.error('Order update error:', orderError);
+          throw orderError;
+        }
       }
 
       // Update local state
