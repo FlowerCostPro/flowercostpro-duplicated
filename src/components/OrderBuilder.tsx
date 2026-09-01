@@ -158,13 +158,25 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       setPhoto(initialOrder.photo || '');
       setStaffName(initialOrder.staffName || '');
       setStaffId(initialOrder.staffId || '');
+      if (initialOrder.customerPrice != null) {
+        setCustomerBudget(initialOrder.customerPrice.toString());
+      }
+      if (initialOrder.pricingProfileId) {
+        setSelectedProfileId(initialOrder.pricingProfileId);
+      }
 
       // Convert products to OrderItems
       const items: OrderItem[] = initialOrder.products.map(product => {
-        const markup = effectiveMarkup[product.type];
-        const retailPrice = Math.round(product.wholesaleCost * markup * 100) / 100;
+        const isBunch = (product.unit ?? 'stem') === 'bunch';
+        const divisor = isBunch && product.portionDivisor ? product.portionDivisor : 1;
+
+        // Staff orders have wholesaleCost=0 (hidden), so use the saved retailPrice snapshot
+        // when available instead of recalculating from wholesale * markup.
+        const retailPrice = product.retailPrice != null
+          ? product.retailPrice
+          : Math.round(product.wholesaleCost * effectiveMarkup[isBunch ? 'bunch' : product.type] * 100) / 100;
         const totalWholesale = product.wholesaleCost * product.quantity;
-        const totalRetail = retailPrice * product.quantity;
+        const totalRetail = isBunch ? retailPrice : retailPrice * product.quantity;
 
         return {
           id: product.id,
@@ -172,6 +184,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
           wholesaleCost: product.wholesaleCost,
           quantity: product.quantity,
           type: product.type,
+          unit: product.unit,
+          portionDivisor: product.portionDivisor,
           retailPrice,
           totalWholesale,
           totalRetail
@@ -180,7 +194,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
 
       setOrderItems(items);
     }
-  }, [initialOrder, markupSettings]);
+  }, [initialOrder]);
 
   // For staff: fetch working budget from server whenever the customer budget or profile changes.
   // The server applies the labor deduction without revealing the percentage.
