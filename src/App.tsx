@@ -582,6 +582,7 @@ function App() {
       case 'create-order':
         return (
           <OrderBuilder
+            key={editingOrder?.id || 'new-order'}
             templates={productTemplates}
             recipes={arrangementRecipes}
             markupSettings={markupSettings}
