@@ -650,6 +650,7 @@ function App() {
         return (
           <StaffSavedOrders
             orders={savedOrders}
+            onEditOrder={handleEditOrder}
             selectedOrderId={selectedOrderId}
             staffPricingProfiles={staffPricingProfiles}
           />

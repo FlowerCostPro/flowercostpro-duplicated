@@ -44,7 +44,9 @@ const StaffArrangementRecipes: React.FC<StaffArrangementRecipesProps> = ({ recip
                     <p className="text-sm text-gray-600 mb-2">{recipe.description}</p>
                   )}
                   <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span>Price: ${recipe.websitePrice.toFixed(2)}</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold">
+                      Retail Total: ${recipe.websitePrice.toFixed(2)}
+                    </span>
                     <span>{recipe.ingredients.length} ingredients</span>
                     {recipe.websiteUrl && (
                       <a
@@ -95,6 +97,9 @@ const StaffArrangementRecipes: React.FC<StaffArrangementRecipesProps> = ({ recip
               <div className="flex justify-between items-center pt-3 border-t">
                 <div className="text-xs text-gray-500">
                   Updated: {recipe.lastUpdated.toLocaleDateString()}
+                </div>
+                <div className="text-sm font-bold text-emerald-700">
+                  ${recipe.websitePrice.toFixed(2)}
                 </div>
               </div>
             </div>

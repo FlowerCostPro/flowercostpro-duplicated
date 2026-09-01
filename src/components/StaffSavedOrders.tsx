@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Archive, Eye, Calendar, Copy, Search, Import as SortAsc } from 'lucide-react';
+import { Archive, Eye, Calendar, Copy, Search, Import as SortAsc, CreditCard as Edit } from 'lucide-react';
 import { OrderRecord, StaffPricingProfile } from '../types/Product';
 import { buildPOSText } from '../lib/posText';
 import { copyTextAndPhoto } from '../lib/clipboardImage';
 
 interface StaffSavedOrdersProps {
   orders: OrderRecord[];
+  onEditOrder: (order: OrderRecord) => void;
   selectedOrderId?: string | null;
   staffPricingProfiles?: StaffPricingProfile[];
 }
 
-const StaffSavedOrders: React.FC<StaffSavedOrdersProps> = ({ orders, selectedOrderId, staffPricingProfiles }) => {
+const StaffSavedOrders: React.FC<StaffSavedOrdersProps> = ({ orders, onEditOrder, selectedOrderId, staffPricingProfiles }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name'>('date');
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
@@ -165,13 +166,22 @@ const StaffSavedOrders: React.FC<StaffSavedOrdersProps> = ({ orders, selectedOrd
             <div key={order.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-3">
                 <h3 className="font-medium text-gray-800 text-sm line-clamp-2">{order.name}</h3>
-                <button
-                  onClick={() => setSelectedOrder(order)}
-                  className="text-gray-400 hover:text-teal-600 transition-colors"
-                  title="View details"
-                >
-                  <Eye className="w-4 h-4" />
-                </button>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setSelectedOrder(order)}
+                    className="text-gray-400 hover:text-teal-600 transition-colors"
+                    title="View details"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => onEditOrder(order)}
+                    className="text-gray-400 hover:text-blue-600 transition-colors"
+                    title="Edit order"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {order.photo && (
@@ -247,6 +257,13 @@ const StaffSavedOrders: React.FC<StaffSavedOrdersProps> = ({ orders, selectedOrd
                   >
                     <Copy className="w-3.5 h-3.5" />
                     {(copyStatusMap[selectedOrder.id] ?? 'idle') === 'copied' ? 'Copied!' : 'Copy for POS'}
+                  </button>
+                  <button
+                    onClick={() => onEditOrder(selectedOrder)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    Edit
                   </button>
                   <button
                     onClick={() => setSelectedOrder(null)}
