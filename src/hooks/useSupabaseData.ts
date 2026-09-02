@@ -889,7 +889,7 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
     }
   };
 
-  const updateOrder = async (orderId: string, updatedOrder: OrderRecord) => {
+  const updateOrder = async (orderId: string, updatedOrder: OrderRecord, isStaffFlag?: boolean) => {
     if (!userId) {
       // Demo mode - update local state and localStorage
       const updatedOrders = savedOrders.map((order: OrderRecord) =>
@@ -918,8 +918,8 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         }
       }
 
-      const isStaff = ownerId && ownerId !== userId;
-      console.log('[updateOrder] isStaff check:', { isStaff, ownerId, userId, orderId });
+      const isStaff = isStaffFlag ?? (ownerId && ownerId !== userId);
+      console.log('[updateOrder] isStaff check:', { isStaff, isStaffFlag, ownerId, userId, orderId });
 
       if (isStaff) {
         // Staff: use secure RPC that recalculates wholesale/retail server-side

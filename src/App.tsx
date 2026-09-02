@@ -446,13 +446,13 @@ function App() {
 
   const handleUpdateOrder = async (orderId: string, order: OrderRecord) => {
     try {
-      await updateOrder(orderId, order);
+      await updateOrder(orderId, order, isStaff);
       setEditingOrder(null);
-      showToast('Order updated successfully!', 'success');
     } catch (error: any) {
       console.error('Error updating order:', error);
       const errorMessage = error.message || 'Unknown error occurred';
       showToast(`Error updating order: ${errorMessage}`, 'error');
+      throw error;
     }
   };
 
