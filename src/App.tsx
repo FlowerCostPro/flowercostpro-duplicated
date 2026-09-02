@@ -444,15 +444,16 @@ function App() {
     setActiveSection(accountRole === 'staff' ? 'my-orders' : 'orders');
   };
 
-  const handleUpdateOrder = async (orderId: string, order: OrderRecord) => {
+  const handleUpdateOrder = async (orderId: string, order: OrderRecord): Promise<boolean> => {
     try {
       await updateOrder(orderId, order, isStaff);
       setEditingOrder(null);
+      return true;
     } catch (error: any) {
       console.error('Error updating order:', error);
       const errorMessage = error.message || 'Unknown error occurred';
       showToast(`Error updating order: ${errorMessage}`, 'error');
-      throw error;
+      return false;
     }
   };
 

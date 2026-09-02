@@ -9,7 +9,7 @@ interface OrderBuilderProps {
   recipes: ArrangementRecipe[];
   markupSettings: MarkupSettings;
   onSaveOrder: (order: OrderRecord) => Promise<OrderRecord | void> | void;
-  onUpdateOrder?: (orderId: string, order: OrderRecord) => Promise<void> | void;
+  onUpdateOrder?: (orderId: string, order: OrderRecord) => Promise<boolean | void> | boolean | void;
   onOrderChange?: (products: Product[]) => void;
   onOrderSaved?: (order: OrderRecord) => void;
   userRole?: 'owner' | 'manager' | 'staff';
@@ -545,7 +545,8 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
     let savedOrder: OrderRecord | undefined;
     try {
       if (editingOrderId && onUpdateOrder) {
-        await onUpdateOrder(editingOrderId, order);
+        const success = await onUpdateOrder(editingOrderId, order);
+        if (success === false) return;
       } else {
         const result = await onSaveOrder(order);
         if (result) savedOrder = result;

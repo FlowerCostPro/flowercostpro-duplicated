@@ -919,7 +919,6 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
       }
 
       const isStaff = isStaffFlag ?? (ownerId && ownerId !== userId);
-      console.log('[updateOrder] isStaff check:', { isStaff, isStaffFlag, ownerId, userId, orderId });
 
       if (isStaff) {
         // Staff: use secure RPC that recalculates wholesale/retail server-side
