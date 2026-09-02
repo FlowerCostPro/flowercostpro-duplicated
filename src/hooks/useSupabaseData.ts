@@ -918,7 +918,9 @@ export const useSupabaseData = (userId: string | null, ownerId?: string | null) 
         }
       }
 
-      const isStaff = isStaffFlag ?? (ownerId && ownerId !== userId);
+      const isStaff = isStaffFlag === true
+        || (profile as any)?.account_role === 'staff'
+        || (ownerId && ownerId !== userId);
 
       if (isStaff) {
         // Staff: use secure RPC that recalculates wholesale/retail server-side
