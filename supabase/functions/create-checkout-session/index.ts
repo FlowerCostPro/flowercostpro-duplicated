@@ -155,6 +155,7 @@ Deno.serve(async (req: Request) => {
         customer: customerId,
         mode: "setup",
         currency: "usd",
+        metadata: { supabase_user_id: userId },
         success_url: `${origin}?payment_method=saved`,
         cancel_url: `${origin}`,
       });

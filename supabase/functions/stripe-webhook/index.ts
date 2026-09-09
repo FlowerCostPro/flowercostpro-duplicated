@@ -52,6 +52,37 @@ async function stripeRequest(path: string) {
   return res.json();
 }
 
+// Update a profile by Stripe customer ID, falling back to supabase_user_id from metadata.
+// This handles the case where stripe_customer_id hasn't been saved to the profile yet
+// (e.g., the checkout.session.completed event arrives before the create-checkout-session
+// function finishes saving the customer ID).
+async function updateProfile(
+  supabase: ReturnType<typeof createClient>,
+  customerId: string,
+  update: Record<string, string | null>,
+  supabaseUserId?: string
+) {
+  // First try matching by stripe_customer_id
+  let { data, error } = await supabase
+    .from("profiles")
+    .update(update)
+    .eq("stripe_customer_id", customerId)
+    .select("id");
+
+  if (error) {
+    console.error("DB update error (by customer_id):", error);
+  }
+
+  // If no rows matched and we have a supabase_user_id, try matching by user ID
+  if ((!data || data.length === 0) && supabaseUserId) {
+    const { error: err2 } = await supabase
+      .from("profiles")
+      .update({ ...update, stripe_customer_id: customerId })
+      .eq("id", supabaseUserId);
+    if (err2) console.error("DB update error (by user_id):", err2);
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -111,17 +142,13 @@ Deno.serve(async (req: Request) => {
 
         const sub = await stripeRequest(`/subscriptions/${subscriptionId}`);
         const trialEnd = sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null;
+        const supabaseUserId = sub.metadata?.supabase_user_id ?? session.metadata?.supabase_user_id;
 
-        const { error } = await supabase
-          .from("profiles")
-          .update({
-            stripe_customer_id: customerId,
-            stripe_subscription_id: subscriptionId,
-            subscription_status: sub.status,
-            trial_ends_at: trialEnd,
-          })
-          .eq("stripe_customer_id", customerId);
-        if (error) console.error("DB update error (checkout.session.completed):", error);
+        await updateProfile(supabase, customerId, {
+          stripe_subscription_id: subscriptionId,
+          subscription_status: sub.status,
+          trial_ends_at: trialEnd,
+        }, supabaseUserId);
         break;
       }
 
@@ -129,6 +156,7 @@ Deno.serve(async (req: Request) => {
         const sub = event.data.object;
         const trialEnd = sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null;
         const subscribedAt = sub.status === "active" ? new Date().toISOString() : null;
+        const supabaseUserId = sub.metadata?.supabase_user_id;
 
         const update: Record<string, string | null> = {
           stripe_subscription_id: sub.id,
@@ -137,43 +165,34 @@ Deno.serve(async (req: Request) => {
         };
         if (subscribedAt) update.subscribed_at = subscribedAt;
 
-        const { error } = await supabase
-          .from("profiles")
-          .update(update)
-          .eq("stripe_customer_id", sub.customer);
-        if (error) console.error("DB update error (customer.subscription.updated):", error);
+        await updateProfile(supabase, sub.customer, update, supabaseUserId);
         break;
       }
 
       case "customer.subscription.deleted": {
         const sub = event.data.object;
-        const { error } = await supabase
-          .from("profiles")
-          .update({ subscription_status: "canceled" })
-          .eq("stripe_customer_id", sub.customer);
-        if (error) console.error("DB update error (customer.subscription.deleted):", error);
+        const supabaseUserId = sub.metadata?.supabase_user_id;
+        await updateProfile(supabase, sub.customer, {
+          subscription_status: "canceled",
+        }, supabaseUserId);
         break;
       }
 
       case "invoice.payment_succeeded": {
         const invoice = event.data.object;
         if (invoice.billing_reason === "subscription_cycle") {
-          const { error } = await supabase
-            .from("profiles")
-            .update({ subscription_status: "active" })
-            .eq("stripe_customer_id", invoice.customer);
-          if (error) console.error("DB update error (invoice.payment_succeeded):", error);
+          await updateProfile(supabase, invoice.customer, {
+            subscription_status: "active",
+          });
         }
         break;
       }
 
       case "invoice.payment_failed": {
         const invoice = event.data.object;
-        const { error } = await supabase
-          .from("profiles")
-          .update({ subscription_status: "past_due" })
-          .eq("stripe_customer_id", invoice.customer);
-        if (error) console.error("DB update error (invoice.payment_failed):", error);
+        await updateProfile(supabase, invoice.customer, {
+          subscription_status: "past_due",
+        });
         break;
       }
 

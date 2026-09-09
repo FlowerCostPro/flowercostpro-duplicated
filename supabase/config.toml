@@ -1,0 +1,20 @@
+[functions.create-checkout-session]
+verify_jwt = true
+
+[functions.create-billing-portal-session]
+verify_jwt = true
+
+[functions.create-staff-account]
+verify_jwt = true
+
+[functions.get-admin-data]
+verify_jwt = true
+
+[functions.setup-coupon-v2]
+verify_jwt = true
+
+[functions.staff-invite]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
