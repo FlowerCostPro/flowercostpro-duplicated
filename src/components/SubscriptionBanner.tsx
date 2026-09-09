@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, X, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle } from 'lucide-react';
+import { Clock, X, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, CreditCard } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface SubscriptionBannerProps {
@@ -19,7 +19,6 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
-  if (subscriptionStatus === 'active') return null;
 
   const trialEnd = trialEndsAt ? new Date(trialEndsAt) : null;
   const now = new Date();
@@ -54,6 +53,60 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
     }
   };
 
+  const handleManageBilling = async () => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-billing-portal-session`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ userId, email }),
+        }
+      );
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        console.error('No billing portal URL returned:', data);
+      }
+    } catch (err) {
+      console.error('Billing portal error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (subscriptionStatus === 'active') {
+    return (
+      <div className="bg-green-700 text-white px-4 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <CheckCircle className="w-4 h-4 flex-shrink-0 text-green-300" />
+          <span className="text-sm">
+            Subscription active — $25/month.
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleManageBilling}
+            disabled={loading}
+            className="bg-green-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-green-500 transition-colors disabled:opacity-60 flex items-center gap-1.5"
+          >
+            <CreditCard className="w-4 h-4" />
+            {loading ? 'Loading...' : 'Manage Billing'}
+          </button>
+          <button onClick={() => setDismissed(true)} className="text-green-300 hover:text-white">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (subscriptionStatus === 'past_due') {
     return (
       <div className="bg-red-600 text-white px-4 py-3 flex items-center justify-between">
@@ -65,7 +118,7 @@ const SubscriptionBanner: React.FC<SubscriptionBannerProps> = ({
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={handleSubscribe}
+            onClick={handleManageBilling}
             disabled={loading}
             className="bg-white text-red-600 px-4 py-1.5 rounded-md text-sm font-semibold hover:bg-red-50 transition-colors disabled:opacity-60"
           >
