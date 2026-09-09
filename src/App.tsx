@@ -710,7 +710,7 @@ function App() {
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      {user?.id && !isAdmin && accountRole === 'owner' && (
+      {user?.id && accountRole === 'owner' && (
         <SubscriptionBanner
           userId={user.id}
           email={user.email ?? ''}
