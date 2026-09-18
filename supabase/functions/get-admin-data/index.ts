@@ -58,11 +58,14 @@ Deno.serve(async (req: Request) => {
     if (authListError) throw authListError;
     const authUserMap = new Map(authData.users.map((u) => [u.id, u]));
 
-    // Fetch all profiles
+    // Fetch all profiles (include account_role and owner_id so staff can inherit owner status)
     const { data: profiles, error: profilesError } = await serviceClient
       .from("profiles")
-      .select("id, email, created_at, subscription_status, trial_ends_at, subscribed_at, is_admin");
+      .select("id, email, created_at, subscription_status, trial_ends_at, subscribed_at, is_admin, account_role, owner_id");
     if (profilesError) throw profilesError;
+
+    // Build a lookup map for resolving staff -> owner subscription status
+    const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
     // Count orders per user in one query
     const { data: orderRows, error: ordersError } = await serviceClient
@@ -82,16 +85,29 @@ Deno.serve(async (req: Request) => {
       (feedbackRows ?? []).map((f: { email: string }) => f.email.toLowerCase().trim())
     );
 
-    // Merge everything
+    // Merge everything. Staff inherit their owner's subscription status.
     const users = (profiles ?? []).map((p) => {
       const authUser = authUserMap.get(p.id);
+      let subStatus = p.subscription_status ?? "trialing";
+      let trialEnds = p.trial_ends_at ?? null;
+      let subscribedAt = p.subscribed_at ?? null;
+
+      if (p.account_role === "staff" && p.owner_id) {
+        const owner = profileMap.get(p.owner_id);
+        if (owner) {
+          subStatus = owner.subscription_status ?? "trialing";
+          trialEnds = owner.trial_ends_at ?? null;
+          subscribedAt = owner.subscribed_at ?? null;
+        }
+      }
+
       return {
         id: p.id,
         email: p.email,
         createdAt: p.created_at,
-        subscriptionStatus: p.subscription_status ?? "trialing",
-        trialEndsAt: p.trial_ends_at ?? null,
-        subscribedAt: p.subscribed_at ?? null,
+        subscriptionStatus: subStatus,
+        trialEndsAt: trialEnds,
+        subscribedAt: subscribedAt,
         lastSignIn: authUser?.last_sign_in_at ?? null,
         orderCount: orderCountMap[p.id] ?? 0,
         hasFeedback: feedbackEmails.has((p.email ?? "").toLowerCase().trim()),
