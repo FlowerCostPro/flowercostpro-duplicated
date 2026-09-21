@@ -53,17 +53,35 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     <div className="space-y-6">
       {/* Welcome Message */}
       <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6 border border-green-200">
-        <h3 className="text-xl font-semibold text-gray-800 mb-2">
-          Welcome back{userRole === 'staff' ? '' : ' to your dashboard'}!
-        </h3>
-        <p className="text-gray-600">
-          {userRole === 'staff' 
-            ? 'Ready to create beautiful arrangements? Use the "Create Order" section to build arrangements within customer budgets.'
-            : userRole === 'manager'
-            ? 'Monitor your shop\'s performance and manage your product library.'
-            : 'Here\'s an overview of your flower shop\'s performance and key metrics.'
-          }
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              Welcome back{userRole === 'staff' ? '' : ' to your dashboard'}!
+            </h3>
+            <p className="text-gray-600">
+              {userRole === 'staff' 
+                ? 'Ready to create beautiful arrangements? Use the "Create Order" section to build arrangements within customer budgets.'
+                : userRole === 'manager'
+                ? 'Monitor your shop\'s performance and manage your product library.'
+                : 'Here\'s an overview of your flower shop\'s performance and key metrics.'
+              }
+            </p>
+          </div>
+          <a
+            href="https://www.dropbox.com/scl/fi/4qalmnv5mlcr87f4h4an7/FlowerCostPro-Getting-Started-Guide.docx?rlkey=shcpqbxsc6sdr817utxlf48ep&st=5w96mghs&dl=0"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-green-700 hover:shadow-md transition-all duration-200 whitespace-nowrap"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="12" y1="18" x2="12" y2="12" />
+              <line x1="9" y1="15" x2="15" y2="15" />
+            </svg>
+            Getting Started
+          </a>
+        </div>
       </div>
 
       {/* Key Metrics - Owner/Manager Only */}
