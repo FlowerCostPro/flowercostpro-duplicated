@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent } from 'react';
-import { BookOpen, Plus, Calculator, CreditCard as Edit2, Trash2, ExternalLink, Save, X } from 'lucide-react';
+import { BookOpen, Plus, Calculator, CreditCard as Edit2, Trash2, ExternalLink, Save, X, Search } from 'lucide-react';
 import { ArrangementRecipe, RecipeIngredient, ProductTemplate, MarkupSettings, BunchPortion } from '../types/Product';
 import { useToast } from './Toast';
 
@@ -57,6 +57,16 @@ const ArrangementRecipes = ({
     portionDivisor: 1 as BunchPortion,
     notes: ''
   });
+
+  const [showNewIngredientSuggestions, setShowNewIngredientSuggestions] = useState(false);
+  const [showEditIngredientSuggestions, setShowEditIngredientSuggestions] = useState(false);
+
+  const filteredNewIngredientTemplates = templates.filter((t: ProductTemplate) =>
+    t.name.toLowerCase().includes(newIngredient.name.toLowerCase().trim())
+  );
+  const filteredEditIngredientTemplates = templates.filter((t: ProductTemplate) =>
+    t.name.toLowerCase().includes(editIngredient.name.toLowerCase().trim())
+  );
 
   const calculateRecipeCost = (recipe: ArrangementRecipe) => {
     let totalWholesale = 0;
@@ -435,13 +445,51 @@ const ArrangementRecipes = ({
             <h4 className="font-medium text-gray-800 mb-3">Recipe Ingredients</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
-              <input
-                type="text"
-                value={newIngredient.name}
-                onChange={(e) => setNewIngredient({ ...newIngredient, name: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Ingredient name"
-              />
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 z-10" />
+                <input
+                  type="text"
+                  value={newIngredient.name}
+                  onChange={(e) => {
+                    setNewIngredient({ ...newIngredient, name: e.target.value });
+                    setShowNewIngredientSuggestions(e.target.value.trim().length > 0);
+                  }}
+                  onFocus={() => setShowNewIngredientSuggestions(newIngredient.name.trim().length > 0)}
+                  onBlur={() => setTimeout(() => setShowNewIngredientSuggestions(false), 300)}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Ingredient name"
+                />
+                {showNewIngredientSuggestions && newIngredient.name.trim().length > 0 && filteredNewIngredientTemplates.length === 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-3">
+                    <div className="text-gray-500 text-sm">No products found. Try a different search term.</div>
+                  </div>
+                )}
+                {showNewIngredientSuggestions && newIngredient.name.trim().length > 0 && filteredNewIngredientTemplates.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {filteredNewIngredientTemplates.map((template: ProductTemplate) => (
+                      <div
+                        key={template.id}
+                        onMouseDown={() => setNewIngredient({ ...newIngredient, name: template.name })}
+                        className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium text-gray-800">{template.name}</div>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getTypeColor(template.type)}`}>
+                                {template.type}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              ${(template.retailPrice ?? template.wholesaleCost).toFixed(2)} • {template.type}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <input
                 type="number"
                 min="1"
@@ -626,13 +674,51 @@ const ArrangementRecipes = ({
             <h4 className="font-medium text-gray-800 mb-3">Recipe Ingredients</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
-              <input
-                type="text"
-                value={editIngredient.name}
-                onChange={(e) => setEditIngredient({ ...editIngredient, name: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ingredient name"
-              />
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 z-10" />
+                <input
+                  type="text"
+                  value={editIngredient.name}
+                  onChange={(e) => {
+                    setEditIngredient({ ...editIngredient, name: e.target.value });
+                    setShowEditIngredientSuggestions(e.target.value.trim().length > 0);
+                  }}
+                  onFocus={() => setShowEditIngredientSuggestions(editIngredient.name.trim().length > 0)}
+                  onBlur={() => setTimeout(() => setShowEditIngredientSuggestions(false), 300)}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ingredient name"
+                />
+                {showEditIngredientSuggestions && editIngredient.name.trim().length > 0 && filteredEditIngredientTemplates.length === 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-3">
+                    <div className="text-gray-500 text-sm">No products found. Try a different search term.</div>
+                  </div>
+                )}
+                {showEditIngredientSuggestions && editIngredient.name.trim().length > 0 && filteredEditIngredientTemplates.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {filteredEditIngredientTemplates.map((template: ProductTemplate) => (
+                      <div
+                        key={template.id}
+                        onMouseDown={() => setEditIngredient({ ...editIngredient, name: template.name })}
+                        className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium text-gray-800">{template.name}</div>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getTypeColor(template.type)}`}>
+                                {template.type}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              ${(template.retailPrice ?? template.wholesaleCost).toFixed(2)} • {template.type}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <input
                 type="number"
                 min="1"
