@@ -46,16 +46,16 @@ export const GUIDE_STEPS: GuideStep[] = [
     description: 'Create an order for a dozen roses using the items from Step 3. The price, including your labor charge, is figured in real time as you build it. Compare it to what you charge today. Is your margin where you want it? Anyone on your team can do this, and your wholesale costs are never shown to staff.',
     buttonLabel: 'Create an Order',
     section: 'create-order',
-    reminder: 'Build a dozen roses order. The price, including labor, is figured as you add each item. Tip: next time you can start from a saved arrangement recipe.',
+    reminder: 'Build a dozen roses order. The price, including labor, is figured as you add each item. Tip: This is to create a one-time custom arrangement.',
     icon: ShoppingCart
   },
   {
     number: 5,
     title: 'Save it as a recipe (optional)',
-    description: 'Want to reuse this arrangement? Save it as an Arrangement Recipe. Next time, choose it from the recipe list in Create Order and it\'s priced instantly.',
+    description: 'Save this arrangement as a recipe so you can use it again.',
     buttonLabel: 'Open Arrangement Recipes',
     section: 'recipes',
-    reminder: 'Save this arrangement as a recipe so you can pick it in Create Order next time.',
+    reminder: 'Save this arrangement as a recipe so you can use it again.',
     icon: BookOpen,
     optional: true
   }
