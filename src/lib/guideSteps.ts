@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { Settings, Sprout, BookOpen, ShoppingCart } from 'lucide-react';
+import { Settings, Sprout, ShoppingCart, BookOpen } from 'lucide-react';
 
 export interface GuideStep {
   number: number;
@@ -9,6 +9,7 @@ export interface GuideStep {
   section: string;
   reminder: string;
   icon: ComponentType<{ className?: string }>;
+  optional?: boolean;
 }
 
 export const GUIDE_STEPS: GuideStep[] = [
@@ -27,7 +28,7 @@ export const GUIDE_STEPS: GuideStep[] = [
     description: "Not every order should be priced the same way. Create a separate profile for each type of order, for example Everyday / walk-in, Weddings, and Holidays (Valentine's Day, Mother's Day). The right markup is applied automatically, with no adjusting by hand.",
     buttonLabel: 'Set up pricing profiles',
     section: 'settings',
-    reminder: 'Create a profile for each order type — Everyday, Weddings, Holidays.',
+    reminder: 'Add a profile for each order type, like Everyday, Weddings and Holidays.',
     icon: Settings
   },
   {
@@ -36,26 +37,27 @@ export const GUIDE_STEPS: GuideStep[] = [
     description: 'Start with something you already know the price of: a dozen roses. In the Product Library, add each item that goes into it with your wholesale cost: roses, greens, filler, vase, ribbon.',
     buttonLabel: 'Open Product Library',
     section: 'products',
-    reminder: 'Add each item with your wholesale cost — roses, greens, filler, vase, ribbon.',
+    reminder: 'Add everything that goes into a dozen roses (roses, greens, filler, vase, ribbon) with your wholesale cost.',
     icon: Sprout
   },
   {
     number: 4,
-    title: 'Build your Dozen Roses recipe',
-    description: 'Go to Arrangement Recipes, create a recipe called "Dozen Roses," and add the items from Step 3. Watch the price build as you go. Compare it to what you charge today. Is your margin where you want it?',
-    buttonLabel: 'Open Arrangement Recipes',
-    section: 'recipes',
-    reminder: 'Create a recipe called "Dozen Roses" and add items from Step 3.',
-    icon: BookOpen
+    title: 'Create your first order',
+    description: 'Create an order for a dozen roses using the items from Step 3. The price, including your labor charge, is figured in real time as you build it. Compare it to what you charge today. Is your margin where you want it? Anyone on your team can do this, and your wholesale costs are never shown to staff.',
+    buttonLabel: 'Create an Order',
+    section: 'create-order',
+    reminder: 'Build a dozen roses order. The price, including labor, is figured as you add each item. Tip: next time you can start from a saved arrangement recipe.',
+    icon: ShoppingCart
   },
   {
     number: 5,
-    title: 'Create your first order',
-    description: 'Create an order using your Dozen Roses recipe. This is where it clicks: anyone on your team can pull up the arrangement and have it priced instantly. Your margin stays protected, and your wholesale costs are never shown to staff.',
-    buttonLabel: 'Create an Order',
-    section: 'create-order',
-    reminder: 'Create an order using your Dozen Roses recipe.',
-    icon: ShoppingCart
+    title: 'Save it as a recipe (optional)',
+    description: 'Want to reuse this arrangement? Save it as an Arrangement Recipe. Next time, choose it from the recipe list in Create Order and it\'s priced instantly.',
+    buttonLabel: 'Open Arrangement Recipes',
+    section: 'recipes',
+    reminder: 'Save this arrangement as a recipe so you can pick it in Create Order next time.',
+    icon: BookOpen,
+    optional: true
   }
 ];
 

@@ -552,13 +552,20 @@ function App() {
 
   const wrappedSaveRecipe = async (recipe: ArrangementRecipe) => {
     const result = await saveArrangementRecipe(recipe);
-    if (guideActiveStep === 4) handleGuideStepComplete(4);
+    if (guideActiveStep === 5) handleGuideStepComplete(5);
     return result;
   };
 
   const handleOrderSavedGuide = (order: OrderRecord) => {
     handleOrderSaved(order);
+    if (guideActiveStep === 4) handleGuideStepComplete(4);
+  };
+
+  const handleFinishGuide = () => {
     if (guideActiveStep === 5) handleGuideStepComplete(5);
+    setGuideActiveStep(null);
+    setGuideJustCompleted(false);
+    handleSectionChange('getting-started');
   };
 
   const handleOrderChange = (products: Product[]) => {
@@ -720,6 +727,7 @@ function App() {
             guideHidden={guideHidden}
             onStartGuideStep={handleStartGuideStep}
             onShowGuide={handleShowGuide}
+            onFinishGuide={handleFinishGuide}
           />
         );
       case 'create-order':
@@ -904,6 +912,7 @@ function App() {
           onBack={handleGuideBack}
           onNext={handleGuideNext}
           onHide={handleHideGuide}
+          onFinish={handleFinishGuide}
         />
       )}
       {showFeedbackModal && (

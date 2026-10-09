@@ -8,6 +8,7 @@ interface GettingStartedProps {
   guideHidden: boolean;
   onStartGuideStep: (step: number) => void;
   onShowGuide: () => void;
+  onFinishGuide: () => void;
 }
 
 const GettingStarted: React.FC<GettingStartedProps> = ({
@@ -15,7 +16,8 @@ const GettingStarted: React.FC<GettingStartedProps> = ({
   completedSteps,
   guideHidden,
   onStartGuideStep,
-  onShowGuide
+  onShowGuide,
+  onFinishGuide
 }) => {
   const completedCount = completedSteps.size;
   const allDone = completedCount >= TOTAL_GUIDE_STEPS;
@@ -82,6 +84,7 @@ const GettingStarted: React.FC<GettingStartedProps> = ({
         {GUIDE_STEPS.map((step) => {
           const Icon = step.icon;
           const isDone = completedSteps.has(step.number);
+          const isOptional = step.optional;
           return (
             <article
               key={step.number}
@@ -99,20 +102,33 @@ const GettingStarted: React.FC<GettingStartedProps> = ({
                   <div className="flex items-center gap-2">
                     <Icon className="h-5 w-5 flex-shrink-0 text-green-700" />
                     <h2 className="text-xl font-bold leading-tight text-gray-900 sm:text-2xl">{step.title}</h2>
+                    {isOptional && (
+                      <span className="ml-2 flex-shrink-0 text-xs font-medium text-gray-400">(optional)</span>
+                    )}
                     {isDone && (
                       <span className="ml-auto flex-shrink-0 text-xs font-semibold text-green-700">Done</span>
                     )}
                   </div>
                   <p className="mt-3 text-base leading-relaxed text-gray-700 sm:text-lg">{step.description}</p>
-                  <button
-                    onClick={() => onStartGuideStep(step.number)}
-                    className={`mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-base font-semibold text-white transition-colors sm:w-auto ${
-                      isDone ? 'bg-gray-500 hover:bg-gray-600' : 'bg-green-600 hover:bg-green-700'
-                    }`}
-                  >
-                    {isDone ? 'Open again' : step.buttonLabel}
-                    <ArrowRight className="h-5 w-5" />
-                  </button>
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <button
+                      onClick={() => onStartGuideStep(step.number)}
+                      className={`inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-base font-semibold text-white transition-colors sm:w-auto ${
+                        isDone ? 'bg-gray-500 hover:bg-gray-600' : 'bg-green-600 hover:bg-green-700'
+                      }`}
+                    >
+                      {isDone ? 'Open again' : step.buttonLabel}
+                      <ArrowRight className="h-5 w-5" />
+                    </button>
+                    {isOptional && !isDone && (
+                      <button
+                        onClick={onFinishGuide}
+                        className="text-sm font-medium text-gray-500 hover:text-gray-700 underline"
+                      >
+                        Skip this step
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </article>
