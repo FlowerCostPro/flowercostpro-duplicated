@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Package, ShoppingCart, Users, DollarSign, Award, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { TrendingUp, Package, ShoppingCart, Users, DollarSign, Award, TriangleAlert as AlertTriangle, CircleHelp } from 'lucide-react';
 import { OrderRecord, ProductTemplate } from '../types/Product';
 
 interface DashboardContentProps {
