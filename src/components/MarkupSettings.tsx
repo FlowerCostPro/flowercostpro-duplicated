@@ -281,7 +281,7 @@ const MarkupSettingsComponent: React.FC<MarkupSettingsProps> = ({
   return (
     <div className="space-y-6">
       {/* Pricing Profiles Section */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div id="pricing-profiles" className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Tag className="w-5 h-5 text-emerald-600" />

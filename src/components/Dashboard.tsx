@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, Package, Settings, TrendingUp, BookOpen, ShoppingCart, User, Crown, LogOut, MessageSquare, TriangleAlert as AlertTriangle, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Package, Settings, TrendingUp, BookOpen, ShoppingCart, User, Crown, LogOut, MessageSquare, TriangleAlert as AlertTriangle, Menu, X, CircleHelp } from 'lucide-react';
 import { ProductTemplate } from '../types/Product';
 
 interface DashboardProps {
@@ -38,6 +38,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Owner-only sections. Staff never sees them and cannot navigate to them.
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard, ownerOnly: false },
+    { id: 'getting-started', label: 'Getting Started', icon: CircleHelp, ownerOnly: false },
     { id: 'create-order', label: 'Create Order', icon: ShoppingCart, ownerOnly: false },
     { id: 'recipes', label: 'Arrangement Recipes', icon: BookOpen, ownerOnly: false },
     { id: 'my-orders', label: 'My Orders', icon: ShoppingCart, ownerOnly: false },

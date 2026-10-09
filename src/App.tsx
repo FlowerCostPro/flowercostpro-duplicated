@@ -5,6 +5,7 @@ import LandingPage from './components/LandingPage';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import DashboardContent from './components/DashboardContent';
+import GettingStarted from './components/GettingStarted';
 import OrderBuilder from './components/OrderBuilder';
 import ProductLibrary from './components/ProductLibrary';
 import ProductForm from './components/ProductForm';
@@ -580,6 +581,13 @@ function App() {
     }
 
     switch (activeSection) {
+      case 'getting-started':
+        return (
+          <GettingStarted
+            onSectionChange={handleSectionChange}
+            onShowFeedback={handleShowFeedback}
+          />
+        );
       case 'create-order':
         return (
           <OrderBuilder
