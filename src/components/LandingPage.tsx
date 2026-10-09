@@ -59,10 +59,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               <img
                 src="/logo.jpg"
                 alt="FlowerCost Pro"
-                className="h-36 w-auto"
+                className="h-20 sm:h-36 w-auto"
               />
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap justify-end items-center gap-2 sm:gap-4 text-sm sm:text-base">
               <button
                 onClick={(e) => {
                   e.preventDefault();
@@ -92,14 +92,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-green-50 to-blue-50 py-20">
+      <section className="bg-gradient-to-br from-green-50 to-blue-50 py-12 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <div className="bg-red-100 text-red-800 px-4 py-2 rounded-full text-sm font-medium inline-block mb-6">
                 🚨 Stop Losing Money on Arrangements
               </div>
-              <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
+              <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6 leading-tight">
                 Train Staff to Maintain
                 <span className="text-green-600"> 40%+ Profit</span> Margins
               </h1>
@@ -117,25 +117,25 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
                   <Play className="w-5 h-5" />
                   Start Free Trial
                 </button>
-                <form onSubmit={handleEmailSignup} className="flex gap-2">
+                <form onSubmit={handleEmailSignup} className="flex flex-col sm:flex-row gap-2 w-full">
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
-                    className="flex-1 px-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full min-w-0 flex-1 px-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                     required
                   />
                   <button
                     type="submit"
-                    className="bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                    className="w-full sm:w-auto bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
                   >
                     Get Notified
                   </button>
                 </form>
               </div>
 
-              <div className="flex items-center gap-6 text-sm text-gray-600">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
                   <span>14-day free trial</span>
@@ -199,10 +199,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
       </section>
 
       {/* Problem Section */}
-      <section className="py-20 bg-red-50">
+      <section className="py-12 sm:py-20 bg-red-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
               The Hidden Profit Killer in Your Shop
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
@@ -252,7 +252,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
               Real-Time Profit Protection
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
@@ -339,7 +339,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
               Everything You Need to Protect Profits
             </h2>
           </div>
@@ -427,7 +427,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
               Florists Love FlowerCost Pro
             </h2>
           </div>
@@ -485,7 +485,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
               Simple, Transparent Pricing
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -498,7 +498,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               <div className="p-8 text-center">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">FlowerCostPro</h3>
                 <div className="mb-2">
-                  <span className="text-5xl font-bold text-gray-900">$25</span>
+                  <span className="text-4xl sm:text-5xl font-bold text-gray-900">$25</span>
                   <span className="text-xl text-gray-600">/month</span>
                 </div>
                 <p className="text-sm text-green-700 font-medium mb-6">
@@ -573,9 +573,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-green-600">
+      <section className="py-12 sm:py-20 bg-green-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
             Stop Losing Money on Beautiful Arrangements
           </h2>
           <p className="text-xl text-green-100 mb-8 max-w-3xl mx-auto">
@@ -591,18 +591,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               <Play className="w-5 h-5" />
               Start Free Trial
             </button>
-            <form onSubmit={handleEmailSignup} className="flex gap-2" name="email-signup-cta">
+            <form onSubmit={handleEmailSignup} className="flex flex-col sm:flex-row gap-2 w-full max-w-xl mx-auto" name="email-signup-cta">
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
-                className="px-4 py-4 border border-green-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-white bg-green-500 text-white placeholder-green-200"
+                className="w-full min-w-0 flex-1 px-4 py-4 border border-green-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-white bg-green-500 text-white placeholder-green-200"
                 required
               />
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                className="w-full sm:w-auto bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
               >
                 Get Notified
               </button>

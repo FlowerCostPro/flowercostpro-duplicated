@@ -151,13 +151,13 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl p-5 sm:p-8 w-full max-w-md my-3 sm:my-0">
         <div className="text-center mb-8">
           <img
             src="/logo.svg"
             alt="FlowerCost Pro"
-            className="h-36 w-auto mx-auto mb-4"
+            className="h-24 sm:h-36 w-auto mx-auto mb-4"
           />
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
             {isPasswordReset ? 'Reset Password' : isSignUp ? 'Create Account' : 'Welcome Back'}
@@ -261,7 +261,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-green-600 text-white py-3 px-3 sm:px-4 rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -299,7 +299,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, isPasswordReset = false, onB
             {onBackToLanding && (
               <button
                 onClick={onBackToLanding}
-                className="text-gray-600 hover:text-gray-700 font-medium mr-4"
+                className="text-gray-600 hover:text-gray-700 font-medium mr-2 sm:mr-4"
               >
                 ← Back to Home
               </button>

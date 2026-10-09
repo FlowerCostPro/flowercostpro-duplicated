@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, Package, Settings, TrendingUp, BookOpen, ShoppingCart, User, Crown, LogOut, MessageSquare, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Users, Package, Settings, TrendingUp, BookOpen, ShoppingCart, User, Crown, LogOut, MessageSquare, TriangleAlert as AlertTriangle, Menu, X } from 'lucide-react';
 import { ProductTemplate } from '../types/Product';
 
 interface DashboardProps {
@@ -26,6 +26,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   children
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const lowStockCount = templates.filter(t => {
     if (t.inventoryCount === undefined) return false;
@@ -63,7 +64,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-white shadow-lg transition-all duration-300 flex flex-col`}>
+      {mobileMenuOpen && (
+        <button
+          aria-label="Close menu"
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+        />
+      )}
+      <div className={`fixed inset-y-0 left-0 z-40 w-72 ${sidebarOpen ? 'md:w-64' : 'md:w-16'} bg-white shadow-lg transition-all duration-300 flex flex-col ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0`}>
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
@@ -108,7 +116,10 @@ const Dashboard: React.FC<DashboardProps> = ({
               return (
                 <li key={item.id}>
                   <button
-                    onClick={() => onSectionChange(item.id)}
+                    onClick={() => {
+                      onSectionChange(item.id);
+                      setMobileMenuOpen(false);
+                    }}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                       isActive
                         ? 'bg-green-100 text-green-700 border border-green-200'
@@ -131,8 +142,30 @@ const Dashboard: React.FC<DashboardProps> = ({
           </ul>
         </nav>
 
+        {/* Mobile Account Actions */}
+        <div className="md:hidden p-4 border-t border-gray-200 space-y-2">
+          <div className={`w-full px-3 py-2 rounded-full text-sm font-medium border flex items-center gap-2 ${roleBadgeClass}`}>
+            <RoleIcon className="w-4 h-4" />
+            {roleLabel}
+          </div>
+          <button
+            onClick={onShowFeedback}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Feedback
+          </button>
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </button>
+        </div>
+
         {/* Sidebar Toggle */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="hidden md:block p-4 border-t border-gray-200">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="w-full flex items-center justify-center p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -145,10 +178,17 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">
+        <header className="bg-white shadow-sm border-b border-gray-200 px-4 py-3 md:px-6 md:py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                aria-label="Open menu"
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden flex-shrink-0 p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-800 truncate">
                 {visibleMenuItems.find(item => item.id === activeSection)?.label || 'Dashboard'}
               </h2>
               <p className="text-gray-600 text-sm">
@@ -159,7 +199,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-4">
               <div className={`px-3 py-1 rounded-full text-sm font-medium border flex items-center gap-1 ${roleBadgeClass}`}>
                 <RoleIcon className="w-3.5 h-3.5" />
                 {roleLabel}
@@ -183,7 +223,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto min-w-0">
           <div data-section={activeSection}>
             {children}
           </div>
