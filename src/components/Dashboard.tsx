@@ -12,6 +12,7 @@ interface DashboardProps {
   onShowFeedback: () => void;
   templates: ProductTemplate[];
   children: React.ReactNode;
+  guideBarVisible?: boolean;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -23,7 +24,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   onLogout,
   onShowFeedback,
   templates,
-  children
+  children,
+  guideBarVisible
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -224,7 +226,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto min-w-0">
+        <main className={`flex-1 p-4 md:p-6 overflow-y-auto min-w-0 ${guideBarVisible ? 'pb-40' : ''}`}>
           <div data-section={activeSection}>
             {children}
           </div>

@@ -26,8 +26,10 @@ import LowStockAlert from './components/LowStockAlert';
 import SubscriptionBanner from './components/SubscriptionBanner';
 import { supabase } from './lib/supabase';
 import { useSupabaseData } from './hooks/useSupabaseData';
-import { Product, ProductTemplate, OrderRecord } from './types/Product';
+import { Product, ProductTemplate, OrderRecord, MarkupSettings as MarkupSettingsType, PricingProfile, ArrangementRecipe } from './types/Product';
 import { useToast } from './components/Toast';
+import GuideBar from './components/GuideBar';
+import { GUIDE_STEPS, TOTAL_GUIDE_STEPS, loadGuideProgress, saveGuideProgress } from './lib/guideSteps';
 
 interface FeedbackModalProps {
   onClose: () => void;
@@ -220,6 +222,13 @@ function App() {
   const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(null);
   const isAdminPath = window.location.pathname === '/admin';
 
+  // Guided setup state
+  const [guideActiveStep, setGuideActiveStep] = useState<number | null>(null);
+  const [guideCompletedSteps, setGuideCompletedSteps] = useState<Set<number>>(new Set());
+  const [guideHidden, setGuideHidden] = useState(false);
+  const [guideJustCompleted, setGuideJustCompleted] = useState(false);
+  const guideJustCompletedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const simulation = getSimulatedSubscriptionState();
   const effectiveStatus = simulation ? simulation.status : subscriptionStatus;
   const effectiveTrialEndsAt = simulation ? simulation.trialEndsAt : trialEndsAt;
@@ -339,6 +348,93 @@ function App() {
       .catch((err) => console.error('Error fetching profile:', err));
   }, [user?.id]);
 
+  // Load guide progress from localStorage when user logs in
+  useEffect(() => {
+    if (!user?.id) {
+      setGuideCompletedSteps(new Set());
+      setGuideHidden(false);
+      setGuideActiveStep(null);
+      return;
+    }
+    const stored = loadGuideProgress(user.id);
+    setGuideCompletedSteps(new Set(stored.completedSteps));
+    setGuideHidden(stored.guideHidden);
+  }, [user?.id]);
+
+  const persistGuideProgress = (completed: Set<number>, hidden: boolean) => {
+    if (!user?.id) return;
+    saveGuideProgress(user.id, [...completed], hidden);
+  };
+
+  const handleGuideStepComplete = (step: number) => {
+    if (guideJustCompletedTimer.current) clearTimeout(guideJustCompletedTimer.current);
+    setGuideJustCompleted(true);
+    guideJustCompletedTimer.current = setTimeout(() => setGuideJustCompleted(false), 5000);
+    setGuideCompletedSteps((prev) => {
+      if (prev.has(step)) return prev;
+      const next = new Set(prev);
+      next.add(step);
+      persistGuideProgress(next, guideHidden);
+      return next;
+    });
+  };
+
+  const handleStartGuideStep = (step: number) => {
+    setGuideActiveStep(step);
+    setGuideJustCompleted(false);
+    const stepData = GUIDE_STEPS[step - 1];
+    if (stepData) {
+      if (step === 2) {
+        handleSectionChange('settings');
+        window.setTimeout(() => {
+          document.getElementById('pricing-profiles')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } else {
+        handleSectionChange(stepData.section);
+      }
+    }
+  };
+
+  const handleGuideNext = () => {
+    if (guideActiveStep === null) return;
+    const nextStep = guideActiveStep + 1;
+    if (nextStep > TOTAL_GUIDE_STEPS) {
+      setGuideActiveStep(null);
+      handleSectionChange('getting-started');
+      return;
+    }
+    setGuideJustCompleted(false);
+    setGuideActiveStep(nextStep);
+    const stepData = GUIDE_STEPS[nextStep - 1];
+    if (stepData) {
+      if (nextStep === 2) {
+        handleSectionChange('settings');
+        window.setTimeout(() => {
+          document.getElementById('pricing-profiles')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } else {
+        handleSectionChange(stepData.section);
+      }
+    }
+  };
+
+  const handleGuideBack = () => {
+    setGuideActiveStep(null);
+    setGuideJustCompleted(false);
+    handleSectionChange('getting-started');
+  };
+
+  const handleHideGuide = () => {
+    setGuideHidden(true);
+    setGuideActiveStep(null);
+    persistGuideProgress(guideCompletedSteps, true);
+  };
+
+  const handleShowGuide = () => {
+    setGuideHidden(false);
+    persistGuideProgress(guideCompletedSteps, false);
+  };
+
   const handleStartTrial = () => {
     setAuthMode('signup');
     setCurrentView('auth');
@@ -369,6 +465,10 @@ function App() {
     if (section !== 'orders' && section !== 'my-orders') {
       setSelectedOrderId(null);
     }
+    // Navigating away from a guided section cancels the guide unless a save triggered it
+    if (section !== GUIDE_STEPS.find(s => s.number === guideActiveStep)?.section) {
+      // User navigated on their own — keep the guide step but don't auto-advance
+    }
     setActiveSection(section);
   };
 
@@ -380,6 +480,9 @@ function App() {
       setOwnerId(null);
       setCurrentView('landing');
       setActiveSection('overview');
+      setGuideActiveStep(null);
+      setGuideCompletedSteps(new Set());
+      setGuideHidden(false);
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -428,6 +531,34 @@ function App() {
       const errorMessage = error?.message || 'Unknown error occurred';
       showToast(`Error adding product: ${errorMessage}`, 'error');
     }
+  };
+
+  // Wrapped save handlers that detect guided-step completion
+  const wrappedSaveMarkupSettings = async (settings: MarkupSettings) => {
+    await saveMarkupSettings(settings);
+    if (guideActiveStep === 1) handleGuideStepComplete(1);
+  };
+
+  const wrappedSavePricingProfile = async (profile: Partial<PricingProfile> & { name: string }) => {
+    const result = await savePricingProfile(profile);
+    if (guideActiveStep === 2) handleGuideStepComplete(2);
+    return result;
+  };
+
+  const addProductFromFormGuide = async (product: Omit<Product, 'id'>) => {
+    await addProductFromForm(product);
+    if (guideActiveStep === 3) handleGuideStepComplete(3);
+  };
+
+  const wrappedSaveRecipe = async (recipe: ArrangementRecipe) => {
+    const result = await saveArrangementRecipe(recipe);
+    if (guideActiveStep === 4) handleGuideStepComplete(4);
+    return result;
+  };
+
+  const handleOrderSavedGuide = (order: OrderRecord) => {
+    handleOrderSaved(order);
+    if (guideActiveStep === 5) handleGuideStepComplete(5);
   };
 
   const handleOrderChange = (products: Product[]) => {
@@ -584,8 +715,11 @@ function App() {
       case 'getting-started':
         return (
           <GettingStarted
-            onSectionChange={handleSectionChange}
             onShowFeedback={handleShowFeedback}
+            completedSteps={guideCompletedSteps}
+            guideHidden={guideHidden}
+            onStartGuideStep={handleStartGuideStep}
+            onShowGuide={handleShowGuide}
           />
         );
       case 'create-order':
@@ -596,7 +730,7 @@ function App() {
             recipes={arrangementRecipes}
             markupSettings={markupSettings}
             onSaveOrder={saveOrder}
-            onOrderSaved={handleOrderSaved}
+            onOrderSaved={handleOrderSavedGuide}
             onUpdateOrder={handleUpdateOrder}
             pricingProfiles={isStaff ? undefined : pricingProfiles}
             staffPricingProfiles={isStaff ? staffPricingProfiles : undefined}
@@ -617,7 +751,7 @@ function App() {
         return (
           <div className="space-y-6">
             <ProductForm
-              onAddProduct={addProductFromForm}
+              onAddProduct={addProductFromFormGuide}
               existingTemplates={productTemplates}
             />
             <ProductLibrary
@@ -641,7 +775,7 @@ function App() {
             recipes={arrangementRecipes}
             templates={productTemplates}
             markupSettings={markupSettings}
-            onSaveRecipe={saveArrangementRecipe}
+            onSaveRecipe={wrappedSaveRecipe}
             onDeleteRecipe={deleteArrangementRecipe}
             onUpdateRecipe={updateArrangementRecipe}
           />
@@ -681,9 +815,9 @@ function App() {
           <div className="space-y-6">
             <MarkupSettingsComponent
               markupSettings={markupSettings}
-              onMarkupChange={saveMarkupSettings}
+              onMarkupChange={wrappedSaveMarkupSettings}
               pricingProfiles={pricingProfiles}
-              onSavePricingProfile={savePricingProfile}
+              onSavePricingProfile={wrappedSavePricingProfile}
               onDeletePricingProfile={deletePricingProfile}
             />
             <POSConfiguration
@@ -751,6 +885,7 @@ function App() {
         onLogout={handleLogout}
         onShowFeedback={handleShowFeedback}
         templates={productTemplates}
+        guideBarVisible={guideActiveStep !== null && !guideHidden}
       >
         <DashboardContent
           activeSection={activeSection}
@@ -762,6 +897,15 @@ function App() {
           {renderActiveSection()}
         </DashboardContent>
       </Dashboard>
+      {guideActiveStep !== null && !guideHidden && (
+        <GuideBar
+          step={guideActiveStep}
+          justCompleted={guideJustCompleted}
+          onBack={handleGuideBack}
+          onNext={handleGuideNext}
+          onHide={handleHideGuide}
+        />
+      )}
       {showFeedbackModal && (
         <FeedbackModal
           onClose={() => setShowFeedbackModal(false)}
