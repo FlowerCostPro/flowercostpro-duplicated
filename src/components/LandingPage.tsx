@@ -1,7 +1,5 @@
-import React, { useState, FormEvent } from 'react';
-import { DollarSign, Users, TrendingUp, CircleCheck as CheckCircle, ArrowRight, Play, Star, Shield, Clock, Target, ChartBar as BarChart3, Smartphone, RefreshCw } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { useToast } from './Toast';
+import React from 'react';
+import { Users, TrendingUp, CircleCheck as CheckCircle, ArrowRight, Play, Star, Shield, Clock, Target, ChartBar as BarChart3, Smartphone, RefreshCw } from 'lucide-react';
 
 interface LandingPageProps {
   onStartTrial: () => void;
@@ -10,47 +8,13 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onShowFeedback }) => {
-  const { showToast } = useToast();
-  const [email, setEmail] = useState('');
-
   const handleGetStarted = () => {
     onStartTrial();
   };
 
-  const handleEmailSignup = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
-    try {
-      // Submit to Supabase
-      const { error } = await supabase
-        .from('email_signups')
-        .insert({
-          email: email.trim().toLowerCase(),
-          source: 'landing-page'
-        });
-
-      if (error) {
-        // Handle duplicate email error gracefully
-        if (error.code === '23505') {
-          showToast(`${email} is already on our notification list.`, 'info');
-        } else {
-          throw error;
-        }
-      } else {
-        showToast(`Thanks! We'll notify ${email} when FlowerCost Pro launches.`, 'success');
-      }
-      
-      setEmail('');
-    } catch (error) {
-      console.error('Email signup error:', error);
-      showToast('There was an error signing up. Please try again.', 'error');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-white">
-      
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -96,43 +60,29 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <div className="bg-red-100 text-red-800 px-4 py-2 rounded-full text-sm font-medium inline-block mb-6">
-                🚨 Stop Losing Money on Arrangements
+              <div className="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium inline-block mb-6">
+                🌸 Built by a florist, for florists
               </div>
               <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6 leading-tight">
-                Train Staff to Maintain
-                <span className="text-green-600"> 40%+ Profit</span> Margins
+                Know Your Profit on Every Arrangement
               </h1>
               <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                FlowerCost Pro prevents costly pricing mistakes during busy seasons. 
-                Real-time cost tracking ensures every arrangement stays profitable, 
-                even with seasonal staff.
+                Your designers just build. FlowerCost Pro prices each arrangement in real time
+                with your markup and labor, and only you see the wholesale cost and profit,
+                including on wire-ins.
               </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4 mb-8">
+
+              <div className="flex flex-col gap-3 mb-6">
                 <button
                   onClick={handleGetStarted}
-                  className="bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg flex items-center justify-center gap-2"
+                  className="bg-green-600 text-white px-8 py-4 rounded-lg hover:bg-green-700 transition-colors font-semibold text-lg flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   <Play className="w-5 h-5" />
-                  Start Free Trial
+                  Start Your Free 14-Day Trial
                 </button>
-                <form onSubmit={handleEmailSignup} className="flex flex-col sm:flex-row gap-2 w-full">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    className="w-full min-w-0 flex-1 px-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    className="w-full sm:w-auto bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-                  >
-                    Get Notified
-                  </button>
-                </form>
+                <p className="text-sm text-gray-600">
+                  No credit card needed · $25/month after · Free 15-minute setup call
+                </p>
               </div>
 
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 text-sm text-gray-600">
@@ -162,7 +112,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
                     Customer Budget: <span className="font-bold">$75.00</span>
                   </div>
                 </div>
-                
+
                 <div className="space-y-3 mb-4">
                   <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                     <span className="font-medium">Red Roses (12)</span>
@@ -189,7 +139,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
                   <div className="text-sm text-green-600 mt-1">$11.12 remaining</div>
                 </div>
               </div>
-              
+
               <div className="absolute -top-4 -right-4 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-bold">
                 Live Demo!
               </div>
@@ -206,8 +156,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               The Hidden Profit Killer in Your Shop
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              During busy seasons, well-meaning staff create beautiful arrangements that lose money. 
-              One $20 mistake per day costs you $7,300 per year.
+              During busy seasons, well-meaning staff create beautiful arrangements that lose money.
+              Even one $20 pricing mistake a day adds up to over $7,000 a year.
             </p>
           </div>
 
@@ -218,7 +168,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-3">Seasonal Staff Mistakes</h3>
               <p className="text-gray-600">
-                Holiday workers don't know your costs. They create gorgeous arrangements 
+                Holiday workers don't know your costs. They create gorgeous arrangements
                 that sell at a loss because they used too many premium stems.
               </p>
             </div>
@@ -229,7 +179,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-3">Rush Hour Pressure</h3>
               <p className="text-gray-600">
-                When customers are waiting, staff grab whatever looks good. 
+                When customers are waiting, staff grab whatever looks good.
                 No time to calculate costs means profit margins disappear.
               </p>
             </div>
@@ -240,7 +190,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-3">Inconsistent Pricing</h3>
               <p className="text-gray-600">
-                Different staff price similar arrangements differently. 
+                Different staff price similar arrangements differently.
                 Customers notice, and your profit margins suffer.
               </p>
             </div>
@@ -256,81 +206,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               Real-Time Profit Protection
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              FlowerCost Pro guides staff to create profitable arrangements every time. 
+              FlowerCost Pro guides staff to create profitable arrangements every time.
               No complex training required - just instant feedback.
             </p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="space-y-8">
-                <div className="flex gap-4">
-                  <div className="bg-green-100 p-3 rounded-full flex-shrink-0">
-                    <Users className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Staff Training Mode</h3>
-                    <p className="text-gray-600">
-                      Staff see customer budget and real-time cost tracking. 
-                      Green means profitable, red means stop adding items.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="bg-blue-100 p-3 rounded-full flex-shrink-0">
-                    <Smartphone className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Universal POS Integration</h3>
-                    <p className="text-gray-600">
-                      Works with Square, Clover, Toast, or any POS system. 
-                      Simple copy/paste - no technical setup required.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="bg-purple-100 p-3 rounded-full flex-shrink-0">
-                    <BarChart3 className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Profit Analytics</h3>
-                    <p className="text-gray-600">
-                      Track which arrangements make money and which don't. 
-                      Identify your most profitable products and staff performance.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-8">
-              <div className="bg-white rounded-xl p-6 shadow-lg">
-                <div className="text-center mb-6">
-                  <div className="bg-green-100 p-3 rounded-full w-fit mx-auto mb-3">
-                    <DollarSign className="w-8 h-8 text-green-600" />
-                  </div>
-                  <h4 className="text-2xl font-bold text-gray-900">Profit Impact</h4>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                    <span className="text-red-700">Before FlowerCost Pro:</span>
-                    <span className="font-bold text-red-700">25% margin</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                    <span className="text-green-700">After FlowerCost Pro:</span>
-                    <span className="font-bold text-green-700">45% margin</span>
-                  </div>
-                  <div className="text-center pt-4 border-t">
-                    <div className="text-3xl font-bold text-green-600">+$15,600</div>
-                    <div className="text-sm text-gray-600">Additional profit per year*</div>
-                    <div className="text-xs text-gray-500 mt-2">*Based on $200/day average sales</div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -351,7 +229,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Staff Training Mode</h3>
               <p className="text-gray-600 text-sm">
-                Real-time budget tracking prevents costly mistakes. Staff see exactly 
+                Real-time budget tracking prevents costly mistakes. Staff see exactly
                 how much they can spend while staying profitable.
               </p>
             </div>
@@ -362,7 +240,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Profit Analytics</h3>
               <p className="text-gray-600 text-sm">
-                Track performance by product, staff member, and time period. 
+                Track performance by product, staff member, and time period.
                 Identify what's working and what's not.
               </p>
             </div>
@@ -373,7 +251,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Arrangement Recipes</h3>
               <p className="text-gray-600 text-sm">
-                Save profitable arrangements as templates. Ensure consistency 
+                Save profitable arrangements as templates. Ensure consistency
                 and maintain margins on popular designs.
               </p>
             </div>
@@ -394,7 +272,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Data Security</h3>
               <p className="text-gray-600 text-sm">
-                Your business data is encrypted and backed up automatically. 
+                Your business data is encrypted and backed up automatically.
                 Access from any device, anywhere.
               </p>
             </div>
@@ -405,8 +283,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Quick Setup</h3>
               <p className="text-gray-600 text-sm">
-                Start protecting profits in under 10 minutes. Import your
-                products and begin training staff immediately.
+                Up and running in about 10 minutes. Add the flowers and supplies you use,
+                then update them as each delivery comes in, so your wholesale prices and
+                inventory are always current.
               </p>
             </div>
 
@@ -423,60 +302,49 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
         </div>
       </section>
 
-      {/* Testimonials Section */}
+      {/* Review Section */}
       <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-              Florists Love FlowerCost Pro
+              What a Shop Owner Says
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-green-50 rounded-xl p-8 border border-green-200">
-              <div className="flex items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                ))}
-              </div>
-              <p className="text-gray-700 mb-4 italic">
-                "Finally, a solution that actually works with our existing POS! 
-                My seasonal staff can now create arrangements without me worrying 
-                about profit margins."
-              </p>
-              <div className="font-semibold text-gray-900">Sarah M.</div>
-              <div className="text-sm text-gray-600">Bloom & Blossom Florist</div>
+          <div className="bg-green-50 rounded-xl p-8 border border-green-200">
+            <div className="flex items-center gap-1 mb-4">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+              ))}
             </div>
+            <p className="text-gray-700 mb-6 text-lg leading-relaxed italic">
+              "This is a great easy system to enter your recipes and keep up with your COGS
+              and keep profit aligned. I love Flower Cost Pro and so do my employees.
+              Simple, fast, easy to use. Highly recommend."
+            </p>
+            <p className="text-gray-600 font-medium">
+              — Flower shop owner, current FlowerCost Pro customer
+            </p>
+          </div>
+        </div>
+      </section>
 
-            <div className="bg-blue-50 rounded-xl p-8 border border-blue-200">
-              <div className="flex items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                ))}
-              </div>
-              <p className="text-gray-700 mb-4 italic">
-                "The staff training mode is genius. New employees understand 
-                profitable pricing in minutes, not hours. Our margins improved 
-                immediately."
-              </p>
-              <div className="font-semibold text-gray-900">Mike R.</div>
-              <div className="text-sm text-gray-600">Garden Gate Flowers</div>
-            </div>
-
-            <div className="bg-purple-50 rounded-xl p-8 border border-purple-200">
-              <div className="flex items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                ))}
-              </div>
-              <p className="text-gray-700 mb-4 italic">
-                "I wish I had this during last Valentine's Day! The profit 
-                analytics showed me exactly which arrangements were losing money. 
-                Never again."
-              </p>
-              <div className="font-semibold text-gray-900">Jennifer L.</div>
-              <div className="text-sm text-gray-600">Petals & Stems</div>
-            </div>
+      {/* Who Built This Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-xl p-8 sm:p-10 shadow-lg border border-gray-200">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6">
+              Built by a Florist Who's Been There
+            </h2>
+            <p className="text-lg text-gray-700 leading-relaxed">
+              I owned and operated a flower shop for 30 years. I know what it's like to price
+              arrangements by feel during a holiday rush and wonder later where the profit went.
+              I built FlowerCost Pro so shop owners can finally see their real numbers without
+              slowing down the design table.
+            </p>
+            <p className="text-lg text-gray-700 mt-4 font-medium">
+              — Karen, founder
+            </p>
           </div>
         </div>
       </section>
@@ -504,7 +372,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
                 <p className="text-sm text-green-700 font-medium mb-6">
                   At $25 a month FlowerCostPro pays for itself with the profit from a single arrangement.
                 </p>
-                
+
                 <ul className="space-y-3 mb-8 text-left">
                   <li className="flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
@@ -560,14 +428,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
           </div>
 
           <div className="text-center mt-12">
-            <p className="text-gray-600 mb-4">
-              <strong>ROI Guarantee:</strong> FlowerCost Pro pays for itself with just 1-2 prevented mistakes per month.
+            <p className="text-gray-600">
+              <strong>Pays for itself:</strong> at $25 a month, preventing just one or two underpriced arrangements covers the cost.
             </p>
-            <div className="bg-green-100 border border-green-200 rounded-lg p-4 max-w-2xl mx-auto">
-              <p className="text-green-800 font-medium">
-                💰 Average customer saves $15,600+ per year in recovered profit margins
-              </p>
-            </div>
           </div>
         </div>
       </section>
@@ -579,36 +442,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
             Stop Losing Money on Beautiful Arrangements
           </h2>
           <p className="text-xl text-green-100 mb-8 max-w-3xl mx-auto">
-            Join hundreds of florists who've protected their profits with FlowerCost Pro. 
-            Start your free trial today - no credit card required.
+            See your real profit on every arrangement. Start your free trial today — no credit card required.
           </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button
-              onClick={handleGetStarted}
-              className="bg-white text-green-600 px-8 py-4 rounded-lg hover:bg-gray-100 transition-colors font-semibold text-lg flex items-center gap-2"
-            >
-              <Play className="w-5 h-5" />
-              Start Free Trial
-            </button>
-            <form onSubmit={handleEmailSignup} className="flex flex-col sm:flex-row gap-2 w-full max-w-xl mx-auto" name="email-signup-cta">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="w-full min-w-0 flex-1 px-4 py-4 border border-green-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-white bg-green-500 text-white placeholder-green-200"
-                required
-              />
-              <button
-                type="submit"
-                className="w-full sm:w-auto bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-              >
-                Get Notified
-              </button>
-            </form>
-          </div>
-          
+
+          <button
+            onClick={handleGetStarted}
+            className="bg-white text-green-600 px-8 py-4 rounded-lg hover:bg-gray-100 transition-colors font-semibold text-lg flex items-center gap-2 mx-auto"
+          >
+            <Play className="w-5 h-5" />
+            Start Your Free 14-Day Trial
+          </button>
+
           <p className="text-green-200 text-sm mt-6">
             ✅ 14-day free trial • ✅ Works with any POS • ✅ Cancel anytime
           </p>
@@ -628,10 +472,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
                 />
               </div>
               <p className="text-gray-400 text-sm">
-                Professional florist profit analysis and staff training software.
+                Real-time cost and profit tracking for flower shops. Built by a florist.
               </p>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-sm text-gray-400">
@@ -640,7 +484,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
                 <li><a href="#" className="hover:text-white">Demo</a></li>
               </ul>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-sm text-gray-400">
@@ -649,7 +493,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
                 <li><a href="#" className="hover:text-white">Training</a></li>
               </ul>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm text-gray-400">
@@ -659,7 +503,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               </ul>
             </div>
           </div>
-          
+
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
             <p>&copy; 2024 FlowerCost Pro. All rights reserved.</p>
           </div>
