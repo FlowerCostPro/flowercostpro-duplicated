@@ -51,6 +51,116 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Handle POST actions (restart trial, delete account)
+    if (req.method === "POST") {
+      const body = await req.json();
+      const action = body.action;
+
+      if (action === "restart_trial") {
+        const targetUserId: string = body.userId;
+        if (!targetUserId) {
+          return new Response(JSON.stringify({ error: "Missing userId" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Fetch the target profile to check subscription status
+        const { data: targetProfile, error: targetError } = await serviceClient
+          .from("profiles")
+          .select("subscription_status, account_role")
+          .eq("id", targetUserId)
+          .single();
+
+        if (targetError || !targetProfile) {
+          return new Response(JSON.stringify({ error: "User not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Never restart trial for paying subscribers
+        if (targetProfile.subscription_status === "active" || targetProfile.subscription_status === "past_due") {
+          return new Response(JSON.stringify({ error: "Cannot restart trial for a paying subscriber" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Set trial_ends_at to 14 days from now, reset status to trialing
+        const newTrialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+        const { error: updateError } = await serviceClient
+          .from("profiles")
+          .update({
+            trial_ends_at: newTrialEnd,
+            subscription_status: "trialing",
+          })
+          .eq("id", targetUserId);
+
+        if (updateError) throw updateError;
+
+        return new Response(JSON.stringify({ success: true, newTrialEnd }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (action === "delete_account") {
+        const targetUserId: string = body.userId;
+        const confirmEmail: string = (body.confirmEmail ?? "").toLowerCase().trim();
+        if (!targetUserId || !confirmEmail) {
+          return new Response(JSON.stringify({ error: "Missing userId or confirmEmail" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Fetch the target profile to verify email and check subscription status
+        const { data: targetProfile, error: targetError } = await serviceClient
+          .from("profiles")
+          .select("email, subscription_status")
+          .eq("id", targetUserId)
+          .single();
+
+        if (targetError || !targetProfile) {
+          return new Response(JSON.stringify({ error: "User not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Never delete paying subscribers
+        if (targetProfile.subscription_status === "active" || targetProfile.subscription_status === "past_due") {
+          return new Response(JSON.stringify({ error: "Cannot delete a paying subscriber" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Verify the confirmation email matches
+        const targetEmail = (targetProfile.email ?? "").toLowerCase().trim();
+        if (targetEmail !== confirmEmail) {
+          return new Response(JSON.stringify({ error: "Email does not match" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Delete the auth user (cascades to profiles and user-scoped data via FK)
+        const { error: deleteError } = await serviceClient.auth.admin.deleteUser(targetUserId);
+        if (deleteError) throw deleteError;
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ error: "Unknown action" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // GET — fetch all admin data
     // Fetch all auth users (carries last_sign_in_at which is not in profiles)
     const { data: authData, error: authListError } = await serviceClient.auth.admin.listUsers({
       perPage: 1000,
