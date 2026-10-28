@@ -323,7 +323,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
               Simple, fast, easy to use. Highly recommend."
             </p>
             <p className="text-gray-600 font-medium">
-              — Flower shop owner, current FlowerCost Pro customer
+              — Ginger, Allen Flower Shop
             </p>
           </div>
         </div>
