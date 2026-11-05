@@ -106,7 +106,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="w-5 h-5 text-purple-600" />
-                    <span className="font-medium text-purple-800">Staff Training Mode</span>
+                    <span className="font-medium text-purple-800">Budget Tracker</span>
                   </div>
                   <div className="text-sm text-purple-700">
                     Customer Budget: <span className="font-bold">$75.00</span>
@@ -223,17 +223,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <div className="bg-green-100 p-3 rounded-full w-fit mb-4">
-                <Users className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Staff Training Mode</h3>
-              <p className="text-gray-600 text-sm">
-                Real-time budget tracking prevents costly mistakes. Staff see exactly
-                how much they can spend while staying profitable.
-              </p>
-            </div>
-
             <div className="bg-white rounded-xl p-6 shadow-lg">
               <div className="bg-blue-100 p-3 rounded-full w-fit mb-4">
                 <BarChart3 className="w-6 h-6 text-blue-600" />
@@ -380,7 +369,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn, onSho
                   </li>
                   <li className="flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                    <span>Staff training mode</span>
+                    <span>Real-time budget tracking</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />

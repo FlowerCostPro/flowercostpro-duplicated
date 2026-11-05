@@ -16,12 +16,10 @@ import ArrangementRecipes from './components/ArrangementRecipes';
 import StaffArrangementRecipes from './components/StaffArrangementRecipes';
 import ProfitAnalytics from './components/ProfitAnalytics';
 import BusinessInsights from './components/BusinessInsights';
-import StaffTrainingMode from './components/StaffTrainingMode';
 import StaffManagement from './components/StaffManagement';
 import StaffInviteAcceptance from './components/StaffInviteAcceptance';
 import TrialExpiredOverlay from './components/TrialExpiredOverlay';
 import POSConfiguration from './components/POSConfiguration';
-import POSOrderView from './components/POSOrderView';
 import LowStockAlert from './components/LowStockAlert';
 import SubscriptionBanner from './components/SubscriptionBanner';
 import { supabase } from './lib/supabase';
@@ -459,6 +457,9 @@ function App() {
   };
 
   const handleSectionChange = (section: string) => {
+    if (section === 'staff-training') {
+      section = 'overview';
+    }
     if (section !== 'create-order') {
       setEditingOrder(null);
     }
@@ -602,7 +603,7 @@ function App() {
   // Sections that staff are completely forbidden from accessing
   const OWNER_ONLY_SECTIONS = new Set([
     'settings', 'analytics', 'insights', 'products', 'low-stock',
-    'orders', 'staff-training', 'team',
+    'orders', 'team',
   ]);
 
   const isStaff = accountRole === 'staff';
@@ -832,18 +833,6 @@ function App() {
               posSettings={posSettings}
               onUpdateSettings={savePosSettings}
             />
-          </div>
-        );
-      case 'staff-training':
-        return (
-          <div className="space-y-6">
-            <StaffTrainingMode
-              products={currentOrderProducts}
-              markupSettings={markupSettings}
-              targetBudget={100}
-              userRole="owner"
-            />
-            <POSOrderView orders={savedOrders} />
           </div>
         );
       case 'team':

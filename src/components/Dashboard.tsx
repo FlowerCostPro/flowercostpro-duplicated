@@ -49,7 +49,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     { id: 'low-stock', label: 'Low Stock Alert', icon: AlertTriangle, ownerOnly: true },
     { id: 'analytics', label: 'Profit Analytics', icon: TrendingUp, ownerOnly: true },
     { id: 'insights', label: 'Business Insights', icon: TrendingUp, ownerOnly: true },
-    { id: 'staff-training', label: 'Staff Training', icon: Users, ownerOnly: true },
     { id: 'team', label: 'Team', icon: Users, ownerOnly: true },
     { id: 'settings', label: 'Settings', icon: Settings, ownerOnly: true },
   ];

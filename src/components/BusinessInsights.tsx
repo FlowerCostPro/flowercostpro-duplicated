@@ -165,7 +165,7 @@ const BusinessInsights: React.FC<BusinessInsightsProps> = ({ orders }) => {
         <div className="space-y-3 text-sm">
           <div className="flex items-start gap-2">
             <span className="text-indigo-600">•</span>
-            <span>Use Staff Training Mode during busy seasons to maintain consistent margins</span>
+            <span>Review arrangement margins regularly to catch underpriced designs before they add up</span>
           </div>
           <div className="flex items-start gap-2">
             <span className="text-indigo-600">•</span>

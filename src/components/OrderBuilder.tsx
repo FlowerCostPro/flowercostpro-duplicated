@@ -1144,7 +1144,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
             </div>
             {userRole === 'staff' && (
               <div className="col-span-2 text-sm text-purple-700 bg-purple-100 p-2 rounded">
-                💡 <strong>Your info will be included in all order records</strong> - This helps track who created each arrangement for training and accountability.
+                💡 <strong>Your info will be included in all order records</strong> - This helps track who created each arrangement for accountability.
               </div>
             )}
           </div>
@@ -1216,7 +1216,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
                   <>
                     <li>• Search for "roses", "carnations", "vase", etc.</li>
                     <li>• Add products one by one to build your arrangement</li>
-                    <li>• Watch the Staff Training budget tracker</li>
+                    <li>• Watch the budget tracker as you build</li>
                     <li>• Adjust quantities to meet customer's budget</li>
                   </>
                 ) : (
