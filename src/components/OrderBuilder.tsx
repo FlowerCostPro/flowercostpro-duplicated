@@ -262,7 +262,7 @@ const OrderBuilder: React.FC<OrderBuilderProps> = ({
       totalRetail
     };
 
-    const updatedItems = [...orderItems, newItem];
+    const updatedItems = [newItem, ...orderItems];
     setOrderItems(updatedItems);
     setSearchTerm('');
     setShowSuggestions(false);
