@@ -762,6 +762,8 @@ function App() {
             <ProductForm
               onAddProduct={addProductFromFormGuide}
               existingTemplates={productTemplates}
+              onUpdateTemplate={updateProductTemplate}
+              userRole={accountRole === 'staff' ? 'staff' : 'owner'}
             />
             <ProductLibrary
               templates={productTemplates}

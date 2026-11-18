@@ -21,3 +21,6 @@ verify_jwt = false
 
 [functions.check-subscription-status]
 verify_jwt = true
+
+[functions.import-invoice]
+verify_jwt = true

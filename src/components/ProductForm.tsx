@@ -1,15 +1,19 @@
 import React, { useState, FormEvent } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, FileText } from 'lucide-react';
 import { Product, ProductTemplate, ProductUnit } from '../types/Product';
 import { useToast } from './Toast';
+import InvoiceImport from './InvoiceImport';
 
 interface ProductFormProps {
   onAddProduct: (product: Omit<Product, 'id'>) => void;
   existingTemplates: ProductTemplate[];
+  onUpdateTemplate?: (templateId: string, updates: Partial<ProductTemplate>) => Promise<void>;
+  userRole?: 'owner' | 'staff';
 }
 
-const ProductForm: React.FC<ProductFormProps> = ({ onAddProduct, existingTemplates }) => {
+const ProductForm: React.FC<ProductFormProps> = ({ onAddProduct, existingTemplates, onUpdateTemplate, userRole }) => {
   const { showToast } = useToast();
+  const [showInvoiceImport, setShowInvoiceImport] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     wholesaleCost: '',
@@ -76,6 +80,20 @@ const ProductForm: React.FC<ProductFormProps> = ({ onAddProduct, existingTemplat
         <Plus className="w-5 h-5 text-green-600" />
         <h2 className="text-xl font-semibold text-gray-800">Add New Product</h2>
       </div>
+
+      {userRole === 'owner' && (
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => setShowInvoiceImport(true)}
+            className="w-full bg-white border-2 border-green-300 text-green-700 py-2 px-4 rounded-md hover:bg-green-50 transition-colors flex items-center justify-center gap-2 font-medium"
+          >
+            <FileText className="w-4 h-4" />
+            Import from Invoice
+          </button>
+          <p className="text-xs text-gray-500 mt-1 text-center">Upload a PDF or photo of a wholesaler invoice — AI reads the line items for you</p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Unit toggle — per stem or per bunch */}
@@ -236,6 +254,15 @@ const ProductForm: React.FC<ProductFormProps> = ({ onAddProduct, existingTemplat
           {existingProduct ? 'Update Product & Add to Inventory' : `Add ${isBunch ? 'Bunch ' : ''}Product to Library`}
         </button>
       </form>
+
+      {showInvoiceImport && onUpdateTemplate && (
+        <InvoiceImport
+          onAddProduct={onAddProduct}
+          onUpdateTemplate={onUpdateTemplate}
+          existingTemplates={existingTemplates}
+          onClose={() => setShowInvoiceImport(false)}
+        />
+      )}
     </div>
   );
 };
