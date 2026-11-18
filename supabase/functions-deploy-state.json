@@ -21,6 +21,10 @@
       "hasChanged": false,
       "hash": "439215679d42147eafc71da14205e392e87fb2e7f0e89fa9d71aba7cf9de76d4"
     },
+    "import-invoice": {
+      "hasChanged": false,
+      "hash": "4691434632a13f23be98c12e9049a54260c9470315eca5068337a71e432f3fd9"
+    },
     "setup-coupon-v2": {
       "hasChanged": false,
       "hash": "4b45b9bbcdae753d0a52fa1bd5ddf5e527696e9079174e3a5b084d21fd20b73f"
@@ -32,10 +36,6 @@
     "stripe-webhook": {
       "hasChanged": false,
       "hash": "eda682d9cf803c3dbeda3d4367e74f9f238f41ca0fec2a690e8a72fcf1fb9d99"
-    },
-    "import-invoice": {
-      "hasChanged": false,
-      "hash": "652848aeb03ec5cf775c3799c9b7bffdf0b599a44c784cf04dc46f9d7be46672"
     }
   }
 }

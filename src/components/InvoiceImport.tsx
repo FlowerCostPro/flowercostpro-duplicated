@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { FileText, Upload, X, Check, Loader2, AlertCircle, Package, SkipForward } from 'lucide-react';
+import { FileText, Upload, X, Check, Loader2, AlertCircle, Package, SkipForward, AlertTriangle } from 'lucide-react';
 import { Product, ProductTemplate } from '../types/Product';
 import { supabase } from '../lib/supabase';
 import { useToast } from './Toast';
@@ -21,6 +21,7 @@ interface ExtractedLine {
 }
 
 type MatchAction = 'new' | 'update' | 'skip';
+type SaveUnit = 'stem' | 'bunch';
 
 interface ReviewLine extends ExtractedLine {
   matchAction: MatchAction;
@@ -28,8 +29,10 @@ interface ReviewLine extends ExtractedLine {
   matchedTemplate: ProductTemplate | null;
   perStemCost: number;
   finalName: string;
-  finalUnit: 'stem' | 'bunch';
+  saveUnit: SaveUnit;
+  stemsPerBunch: number;
   finalType: 'stem' | 'vase' | 'accessory' | 'other';
+  addToInventory: boolean;
 }
 
 function findBestMatch(line: ExtractedLine, templates: ProductTemplate[]): ProductTemplate | null {
@@ -71,6 +74,22 @@ function computePerStemCost(line: ExtractedLine): number {
   return Math.round((line.linePrice / totalStems) * 100) / 100;
 }
 
+function computeSavedCost(line: ReviewLine): number {
+  if (line.saveUnit === 'bunch') {
+    if (line.stemsPerBunch <= 0) return 0;
+    return Math.round((line.linePrice / (line.quantity * line.stemsPerBunch / line.stemsPerBunch)) * 100) / 100;
+  }
+  return line.perStemCost;
+}
+
+function computeBunchCost(line: ReviewLine): number {
+  const totalBunches = line.stemsPerBunch > 0
+    ? (line.quantity * line.stemsPerUnit) / line.stemsPerBunch
+    : line.quantity;
+  if (totalBunches <= 0) return 0;
+  return Math.round((line.linePrice / totalBunches) * 100) / 100;
+}
+
 const InvoiceImport: React.FC<InvoiceImportProps> = ({
   onAddProduct,
   onUpdateTemplate,
@@ -83,7 +102,6 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [reviewLines, setReviewLines] = useState<ReviewLine[] | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [savedCount, setSavedCount] = useState(0);
 
   const handleFileSelect = useCallback(async (file: File) => {
     setIsProcessing(true);
@@ -105,9 +123,7 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-invoice`;
       const response = await fetch(functionUrl, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
       });
 
@@ -133,6 +149,19 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
           ? `${line.productName} - ${line.variety}`.trim()
           : line.productName;
 
+        const isBox = line.unit === 'box';
+        let saveUnit: SaveUnit = 'stem';
+        let stemsPerBunch = line.stemsPerUnit;
+
+        if (match) {
+          saveUnit = (match.unit ?? 'stem') === 'bunch' ? 'bunch' : 'stem';
+        } else if (line.unit === 'bunch') {
+          saveUnit = 'bunch';
+          stemsPerBunch = line.stemsPerUnit;
+        } else if (isBox) {
+          saveUnit = 'stem';
+        }
+
         return {
           ...line,
           matchAction: match ? 'update' : 'new',
@@ -140,8 +169,10 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
           matchedTemplate: match,
           perStemCost,
           finalName,
-          finalUnit: (line.unit === 'bunch' ? 'bunch' : 'stem') as 'stem' | 'bunch',
+          saveUnit,
+          stemsPerBunch,
           finalType: 'stem' as 'stem' | 'vase' | 'accessory' | 'other',
+          addToInventory: true,
         };
       });
 
@@ -154,12 +185,12 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
     }
   }, [existingTemplates]);
 
-  const handleInputChange = (index: number, field: keyof ReviewLine, value: string | number) => {
+  const updateLine = (index: number, patch: Partial<ReviewLine>) => {
     setReviewLines((prev) => {
       if (!prev) return prev;
       const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
-      if (['quantity', 'stemsPerUnit', 'linePrice'].includes(field as string)) {
+      updated[index] = { ...updated[index], ...patch };
+      if (patch.quantity !== undefined || patch.stemsPerUnit !== undefined || patch.linePrice !== undefined) {
         updated[index].perStemCost = computePerStemCost(updated[index]);
       }
       return updated;
@@ -175,6 +206,10 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
         const template = existingTemplates.find((t) => t.id === templateId) ?? null;
         updated[index].matchedTemplateId = templateId;
         updated[index].matchedTemplate = template;
+        if (template) {
+          const templateUnit = (template.unit ?? 'stem') === 'bunch' ? 'bunch' : 'stem';
+          updated[index].saveUnit = templateUnit;
+        }
       } else if (action === 'new') {
         updated[index].matchedTemplateId = null;
         updated[index].matchedTemplate = null;
@@ -197,32 +232,61 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
 
     try {
       for (const line of linesToSave) {
-        if (line.matchAction === 'update' && line.matchedTemplateId) {
-          await onUpdateTemplate(line.matchedTemplateId, {
-            wholesaleCost: line.finalUnit === 'bunch'
-              ? Math.round((line.linePrice / line.quantity) * 100) / 100
-              : line.perStemCost,
-            unit: line.finalUnit,
-            type: line.finalType,
-            lastUsed: new Date(),
-          });
+        if (line.saveUnit === 'bunch') {
+          const bunchCost = computeBunchCost(line);
+          if (line.matchAction === 'update' && line.matchedTemplateId) {
+            const updates: Partial<ProductTemplate> = {
+              wholesaleCost: bunchCost,
+              unit: 'bunch',
+              type: line.finalType,
+              lastUsed: new Date(),
+            };
+            if (line.addToInventory && line.matchedTemplate) {
+              const totalBunches = line.stemsPerBunch > 0
+                ? (line.quantity * line.stemsPerUnit) / line.stemsPerBunch
+                : line.quantity;
+              updates.inventoryCount = (line.matchedTemplate.inventoryCount ?? 0) + Math.round(totalBunches * 100) / 100;
+            }
+            await onUpdateTemplate(line.matchedTemplateId, updates);
+          } else {
+            onAddProduct({
+              name: line.finalName,
+              wholesaleCost: bunchCost,
+              quantity: 1,
+              type: line.finalType,
+              unit: 'bunch',
+              inventoryCount: undefined,
+              lowStockThreshold: undefined,
+            });
+          }
         } else {
-          onAddProduct({
-            name: line.finalName,
-            wholesaleCost: line.finalUnit === 'bunch'
-              ? Math.round((line.linePrice / line.quantity) * 100) / 100
-              : line.perStemCost,
-            quantity: 1,
-            type: line.finalType,
-            unit: line.finalUnit,
-            inventoryCount: undefined,
-            lowStockThreshold: undefined,
-          });
+          if (line.matchAction === 'update' && line.matchedTemplateId) {
+            const updates: Partial<ProductTemplate> = {
+              wholesaleCost: line.perStemCost,
+              unit: 'stem',
+              type: line.finalType,
+              lastUsed: new Date(),
+            };
+            if (line.addToInventory && line.matchedTemplate) {
+              const totalStems = line.quantity * line.stemsPerUnit;
+              updates.inventoryCount = (line.matchedTemplate.inventoryCount ?? 0) + totalStems;
+            }
+            await onUpdateTemplate(line.matchedTemplateId, updates);
+          } else {
+            onAddProduct({
+              name: line.finalName,
+              wholesaleCost: line.perStemCost,
+              quantity: 1,
+              type: line.finalType,
+              unit: 'stem',
+              inventoryCount: undefined,
+              lowStockThreshold: undefined,
+            });
+          }
         }
         count++;
       }
 
-      setSavedCount(count);
       setIsSaving(false);
       showToast(`Successfully imported ${count} product${count !== 1 ? 's' : ''} from invoice.`, 'success');
       onClose();
@@ -245,6 +309,13 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
   };
 
   const activeLines = reviewLines?.filter((l) => l.matchAction !== 'skip') ?? [];
+
+  const getSavedCostDisplay = (line: ReviewLine): { cost: number; unit: string } => {
+    if (line.saveUnit === 'bunch') {
+      return { cost: computeBunchCost(line), unit: 'bunch' };
+    }
+    return { cost: line.perStemCost, unit: 'stem' };
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -330,185 +401,286 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
 
               {/* Line items */}
               <div className="space-y-3">
-                {reviewLines.map((line, index) => (
-                  <div
-                    key={index}
-                    className={`border rounded-lg p-4 transition-colors ${
-                      line.matchAction === 'skip'
-                        ? 'border-gray-200 bg-gray-50 opacity-60'
-                        : 'border-gray-200 bg-white'
-                    }`}
-                  >
-                    {/* Match status row */}
-                    <div className="flex items-center gap-3 mb-3">
-                      {line.matchAction === 'update' && line.matchedTemplate ? (
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-amber-700 font-medium">Update existing:</span>
-                          <span className="text-gray-700">{line.matchedTemplate.name}</span>
-                          <span className="text-gray-400">—</span>
-                          <span className="text-red-600 line-through">${line.matchedTemplate.wholesaleCost.toFixed(2)}</span>
-                          <span className="text-gray-400">→</span>
-                          <span className="text-green-600 font-medium">
-                            ${line.finalUnit === 'bunch'
-                              ? (line.linePrice / line.quantity).toFixed(2)
-                              : line.perStemCost.toFixed(2)}
-                          </span>
-                        </div>
-                      ) : line.matchAction === 'new' ? (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Package className="w-4 h-4 text-green-600" />
-                          <span className="text-green-700 font-medium">Add as new product</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-sm">
-                          <SkipForward className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-500 font-medium">Skipped</span>
-                        </div>
-                      )}
-                      <select
-                        value={line.matchAction}
-                        onChange={(e) => {
-                          const action = e.target.value as MatchAction;
-                          if (action === 'update') {
-                            const firstTemplate = existingTemplates[0];
-                            if (firstTemplate) {
-                              handleMatchChange(index, 'update', firstTemplate.id);
-                            } else {
-                              handleMatchChange(index, 'new');
-                            }
-                          } else {
-                            handleMatchChange(index, action);
-                          }
-                        }}
-                        disabled={isSaving}
-                        className="ml-auto text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
-                      >
-                        <option value="new">Add as new</option>
-                        {line.matchAction === 'update' && line.matchedTemplateId && (
-                          <option value="update">Update: {line.matchedTemplate?.name}</option>
-                        )}
-                        {line.matchAction !== 'update' && existingTemplates.length > 0 && (
-                          <option value="update">Update existing...</option>
-                        )}
-                        <option value="skip">Skip this line</option>
-                      </select>
-                    </div>
+                {reviewLines.map((line, index) => {
+                  const saved = getSavedCostDisplay(line);
+                  const isBox = line.unit === 'box';
+                  const unitMismatch = line.matchedTemplate &&
+                    line.unit !== 'box' &&
+                    ((line.matchedTemplate.unit ?? 'stem') !== line.unit);
 
-                    {/* Template picker (only when updating and multiple options exist) */}
-                    {line.matchAction === 'update' && existingTemplates.length > 1 && (
-                      <div className="mb-3">
+                  return (
+                    <div
+                      key={index}
+                      className={`border rounded-lg p-4 transition-colors ${
+                        line.matchAction === 'skip'
+                          ? 'border-gray-200 bg-gray-50 opacity-60'
+                          : 'border-gray-200 bg-white'
+                      }`}
+                    >
+                      {/* Match status row */}
+                      <div className="flex items-center gap-3 mb-3 flex-wrap">
+                        {line.matchAction === 'update' && line.matchedTemplate ? (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-amber-700 font-medium">Update existing:</span>
+                            <span className="text-gray-700">{line.matchedTemplate.name}</span>
+                            <span className="text-gray-400">—</span>
+                            <span className="text-red-600 line-through">${line.matchedTemplate.wholesaleCost.toFixed(2)}</span>
+                            <span className="text-gray-400">→</span>
+                            <span className="text-green-600 font-medium">${saved.cost.toFixed(2)}</span>
+                          </div>
+                        ) : line.matchAction === 'new' ? (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Package className="w-4 h-4 text-green-600" />
+                            <span className="text-green-700 font-medium">Add as new product</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-sm">
+                            <SkipForward className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-500 font-medium">Skipped</span>
+                          </div>
+                        )}
                         <select
-                          value={line.matchedTemplateId ?? ''}
-                          onChange={(e) => handleMatchChange(index, 'update', e.target.value)}
+                          value={line.matchAction}
+                          onChange={(e) => {
+                            const action = e.target.value as MatchAction;
+                            if (action === 'update') {
+                              const firstTemplate = existingTemplates[0];
+                              if (firstTemplate) {
+                                handleMatchChange(index, 'update', firstTemplate.id);
+                              } else {
+                                handleMatchChange(index, 'new');
+                              }
+                            } else {
+                              handleMatchChange(index, action);
+                            }
+                          }}
                           disabled={isSaving}
-                          className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="ml-auto text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
                         >
-                          {existingTemplates.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.name} (${t.wholesaleCost.toFixed(2)})
-                            </option>
-                          ))}
+                          <option value="new">Add as new</option>
+                          {line.matchAction === 'update' && line.matchedTemplateId && (
+                            <option value="update">Update: {line.matchedTemplate?.name}</option>
+                          )}
+                          {line.matchAction !== 'update' && existingTemplates.length > 0 && (
+                            <option value="update">Update existing...</option>
+                          )}
+                          <option value="skip">Skip this line</option>
                         </select>
                       </div>
-                    )}
 
-                    {/* Editable fields */}
-                    {line.matchAction !== 'skip' && (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="col-span-2 md:col-span-2">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Product Name</label>
-                          <input
-                            type="text"
-                            value={line.finalName}
-                            onChange={(e) => handleInputChange(index, 'finalName', e.target.value)}
-                            disabled={isSaving}
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Quantity</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={line.quantity}
-                            onChange={(e) => handleInputChange(index, 'quantity', parseInt(e.target.value) || 1)}
-                            disabled={isSaving}
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Unit</label>
+                      {/* Template picker */}
+                      {line.matchAction === 'update' && existingTemplates.length > 1 && (
+                        <div className="mb-3">
                           <select
-                            value={line.unit}
-                            onChange={(e) => {
-                              const unit = e.target.value;
-                              setReviewLines((prev) => {
-                                if (!prev) return prev;
-                                const updated = [...prev];
-                                updated[index] = {
-                                  ...updated[index],
-                                  unit,
-                                  finalUnit: unit === 'bunch' ? 'bunch' : 'stem',
-                                  perStemCost: computePerStemCost(updated[index]),
-                                };
-                                return updated;
-                              });
-                            }}
+                            value={line.matchedTemplateId ?? ''}
+                            onChange={(e) => handleMatchChange(index, 'update', e.target.value)}
                             disabled={isSaving}
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                            className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                           >
-                            <option value="stem">stem</option>
-                            <option value="bunch">bunch</option>
-                            <option value="box">box</option>
+                            {existingTemplates.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name} (${t.wholesaleCost.toFixed(2)}/{t.unit ?? 'stem'})
+                              </option>
+                            ))}
                           </select>
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Stems / Unit</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={line.stemsPerUnit}
-                            onChange={(e) => handleInputChange(index, 'stemsPerUnit', parseInt(e.target.value) || 1)}
-                            disabled={isSaving}
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                          />
+                      )}
+
+                      {/* Unit mismatch warning */}
+                      {unitMismatch && (
+                        <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-md flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                          <span className="text-xs text-amber-700">
+                            Invoice lists this as "{line.unit}" but your existing product uses "{line.matchedTemplate?.unit ?? 'stem'}".
+                            Saving will use the existing product's unit.
+                          </span>
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Line Price ($)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={line.linePrice}
-                            onChange={(e) => handleInputChange(index, 'linePrice', parseFloat(e.target.value) || 0)}
-                            disabled={isSaving}
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                          />
+                      )}
+
+                      {/* Box conversion notice */}
+                      {isBox && line.matchAction !== 'skip' && (
+                        <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-md flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                          <span className="text-xs text-blue-700">
+                            Invoice lists this as "box" — choose how to save it below. Box is not a valid product unit.
+                          </span>
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Per-Stem Cost</label>
-                          <div className="w-full px-2 py-1.5 text-sm bg-green-50 border border-green-200 rounded-md font-medium text-green-700">
-                            ${line.perStemCost.toFixed(2)}
+                      )}
+
+                      {/* Editable fields */}
+                      {line.matchAction !== 'skip' && (
+                        <>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="col-span-2 md:col-span-2">
+                              <label className="block text-xs font-medium text-gray-500 mb-1">Product Name</label>
+                              <input
+                                type="text"
+                                value={line.finalName}
+                                onChange={(e) => updateLine(index, { finalName: e.target.value })}
+                                disabled={isSaving}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">Invoice Qty</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={line.quantity}
+                                onChange={(e) => updateLine(index, { quantity: parseInt(e.target.value) || 1 })}
+                                disabled={isSaving}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">Invoice Unit</label>
+                              <div className="w-full px-2 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md text-gray-600">
+                                {line.unit}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">Stems / Unit</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={line.stemsPerUnit}
+                                onChange={(e) => updateLine(index, { stemsPerUnit: parseInt(e.target.value) || 1 })}
+                                disabled={isSaving}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">Line Price ($)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={line.linePrice}
+                                onChange={(e) => updateLine(index, { linePrice: parseFloat(e.target.value) || 0 })}
+                                disabled={isSaving}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">Per-Stem Cost</label>
+                              <div className="w-full px-2 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md font-medium text-gray-700">
+                                ${line.perStemCost.toFixed(2)}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
+                              <select
+                                value={line.finalType}
+                                onChange={(e) => updateLine(index, { finalType: e.target.value as 'stem' | 'vase' | 'accessory' | 'other' })}
+                                disabled={isSaving || line.saveUnit === 'bunch'}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50"
+                              >
+                                <option value="stem">Stem</option>
+                                <option value="vase">Vase</option>
+                                <option value="accessory">Accessory</option>
+                                <option value="other">Other</option>
+                              </select>
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
-                          <select
-                            value={line.finalType}
-                            onChange={(e) => handleInputChange(index, 'finalType', e.target.value as 'stem' | 'vase' | 'accessory' | 'other')}
-                            disabled={isSaving || line.finalUnit === 'bunch'}
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50"
-                          >
-                            <option value="stem">Stem</option>
-                            <option value="vase">Vase</option>
-                            <option value="accessory">Accessory</option>
-                            <option value="other">Other</option>
-                          </select>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+
+                          {/* Save-as selector (always visible, but especially for box) */}
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">Save as unit</label>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => updateLine(index, { saveUnit: 'stem' })}
+                                  disabled={isSaving}
+                                  className={`flex-1 px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                                    line.saveUnit === 'stem'
+                                      ? 'bg-green-600 text-white border-green-600'
+                                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  Per Stem
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateLine(index, { saveUnit: 'bunch' })}
+                                  disabled={isSaving}
+                                  className={`flex-1 px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                                    line.saveUnit === 'bunch'
+                                      ? 'bg-green-600 text-white border-green-600'
+                                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  Per Bunch
+                                </button>
+                              </div>
+                            </div>
+                            {line.saveUnit === 'bunch' && (
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Stems per bunch</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={line.stemsPerBunch}
+                                  onChange={(e) => updateLine(index, { stemsPerBunch: parseInt(e.target.value) || 1 })}
+                                  disabled={isSaving}
+                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Saved value display */}
+                          <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded-md">
+                            <span className="text-sm text-green-700">
+                              Will save: <strong>${saved.cost.toFixed(2)} per {saved.unit}</strong>
+                              {line.matchAction === 'update' && line.matchedTemplate && (
+                                <span className="text-gray-500"> (was ${line.matchedTemplate.wholesaleCost.toFixed(2)} per {line.matchedTemplate.unit ?? 'stem'})</span>
+                              )}
+                            </span>
+                          </div>
+
+                          {/* Inventory section for updates */}
+                          {line.matchAction === 'update' && line.matchedTemplate && (
+                            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={line.addToInventory}
+                                  onChange={(e) => updateLine(index, { addToInventory: e.target.checked })}
+                                  disabled={isSaving}
+                                  className="w-4 h-4 rounded text-green-600 focus:ring-green-500"
+                                />
+                                <span className="text-sm text-amber-800">
+                                  Add received quantity to inventory
+                                </span>
+                              </label>
+                              {line.addToInventory && (
+                                <p className="text-xs text-amber-700 mt-1 ml-6">
+                                  {(() => {
+                                    const existing = line.matchedTemplate!.inventoryCount ?? 0;
+                                    if (line.saveUnit === 'bunch') {
+                                      const totalBunches = line.stemsPerBunch > 0
+                                        ? (line.quantity * line.stemsPerUnit) / line.stemsPerBunch
+                                        : line.quantity;
+                                      return `${existing} + ${Math.round(totalBunches * 100) / 100} received = ${Math.round((existing + totalBunches) * 100) / 100} bunches`;
+                                    }
+                                    const totalStems = line.quantity * line.stemsPerUnit;
+                                    return `${existing} + ${totalStems} received = ${existing + totalStems} stems`;
+                                  })()}
+                                </p>
+                              )}
+                              {!line.addToInventory && (
+                                <p className="text-xs text-amber-700 mt-1 ml-6">
+                                  Inventory unchanged at {line.matchedTemplate.inventoryCount ?? 0} {line.matchedTemplate.unit ?? 'stem'}s
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
