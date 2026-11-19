@@ -200,7 +200,7 @@ Deno.serve(async (req: Request) => {
     };
 
     let geminiResponse: Response | null = null;
-    const maxRetries = 2;
+    const maxRetries = 1;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       geminiResponse = await fetch(geminiUrl, {
         method: "POST",
@@ -216,9 +216,8 @@ Deno.serve(async (req: Request) => {
         /overloaded|high demand|temporarily|try again later/i.test(errText);
 
       if (isTransient && attempt < maxRetries) {
-        const backoff = (attempt + 1) * 2000;
-        console.warn(`Gemini transient error (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${backoff}ms:`, geminiResponse.status);
-        await new Promise((r) => setTimeout(r, backoff));
+        console.warn(`Gemini transient error (attempt ${attempt + 1}/${maxRetries + 1}), retrying:`, geminiResponse.status);
+        await new Promise((r) => setTimeout(r, 1000));
         continue;
       }
 

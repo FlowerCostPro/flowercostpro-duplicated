@@ -127,10 +127,21 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
         body: formData,
       });
 
-      const result = await response.json();
+      let result: any;
+      try {
+        result = await response.json();
+      } catch {
+        if (response.status === 504 || response.status === 524) {
+          setError('The AI service took too long to respond. Please try again — this is usually temporary.');
+        } else {
+          setError(`The server returned an unexpected response (status ${response.status}). Please try again.`);
+        }
+        setIsProcessing(false);
+        return;
+      }
 
       if (!response.ok) {
-        setError(result.error || 'Failed to process invoice. Please try again.');
+        setError(result.error || `The server returned an error (status ${response.status}). Please try again.`);
         setIsProcessing(false);
         return;
       }
