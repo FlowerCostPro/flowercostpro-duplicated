@@ -149,7 +149,7 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
 
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-invoice`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 55000);
+      const timeoutId = setTimeout(() => controller.abort(), 85000);
       const response = await fetch(functionUrl, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` },

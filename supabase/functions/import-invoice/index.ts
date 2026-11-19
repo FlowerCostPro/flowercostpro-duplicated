@@ -9,6 +9,7 @@ const corsHeaders = {
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-3.8-flash";
+const GEMINI_FALLBACK_MODEL = Deno.env.get("GEMINI_FALLBACK_MODEL") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -179,8 +180,6 @@ Deno.serve(async (req: Request) => {
     const mimeType = file.type || (fileName.endsWith(".pdf") ? "application/pdf" : "image/jpeg");
 
     // Call Gemini API with configurable model
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-
     const geminiBody = {
       contents: [{
         parts: [
@@ -199,32 +198,71 @@ Deno.serve(async (req: Request) => {
       },
     };
 
-    let geminiResponse: Response | null = null;
-    const maxRetries = 1;
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      geminiResponse = await fetch(geminiUrl, {
+    const RETRY_DELAYS = [2000, 5000, 10000];
+    const TRANSIENT_RE = /overloaded|high demand|temporarily|try again later/i;
+
+    function isTransientError(status: number, errText: string): boolean {
+      return status === 429 || status >= 500 || TRANSIENT_RE.test(errText);
+    }
+
+    async function callGemini(model: string): Promise<{ response: Response; transient: boolean; errText: string; status: number }> {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(geminiBody),
       });
+      if (response.ok) return { response, transient: false, errText: "", status: response.status };
+      const errText = await response.text();
+      return { response, transient: isTransientError(response.status, errText), errText, status: response.status };
+    }
 
-      if (geminiResponse.ok) break;
+    let geminiResponse: Response | null = null;
+    let lastErrText = "";
+    let lastStatus = 0;
 
-      const errText = await geminiResponse.text();
-      const isTransient = geminiResponse.status === 429 ||
-        geminiResponse.status >= 500 ||
-        /overloaded|high demand|temporarily|try again later/i.test(errText);
-
-      if (isTransient && attempt < maxRetries) {
-        console.warn(`Gemini transient error (attempt ${attempt + 1}/${maxRetries + 1}), retrying:`, geminiResponse.status);
-        await new Promise((r) => setTimeout(r, 1000));
-        continue;
+    // Try primary model with up to 3 retries (delays: 2s, 5s, 10s)
+    for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+      const result = await callGemini(GEMINI_MODEL);
+      if (!result.transient) {
+        if (result.response.ok) {
+          geminiResponse = result.response;
+          break;
+        }
+        // Non-transient error — return specific message immediately
+        console.error("Gemini API error:", result.status, result.errText);
+        const userMsg = geminiErrorMessage(result.status, result.errText);
+        return new Response(JSON.stringify({ error: userMsg }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      console.error("Gemini API error:", geminiResponse.status, errText);
-      const userMsg = geminiErrorMessage(geminiResponse.status, errText);
-      return new Response(JSON.stringify({ error: userMsg }), {
-        status: 502,
+      lastErrText = result.errText;
+      lastStatus = result.status;
+
+      if (attempt < RETRY_DELAYS.length) {
+        console.warn(`Gemini transient error (attempt ${attempt + 1}/${RETRY_DELAYS.length + 1}), retrying in ${RETRY_DELAYS[attempt]}ms:`, result.status);
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+      }
+    }
+
+    // If primary model exhausted retries, try fallback model once
+    if (!geminiResponse && GEMINI_FALLBACK_MODEL) {
+      console.warn(`Primary model "${GEMINI_MODEL}" exhausted retries (last status ${lastStatus}). Trying fallback "${GEMINI_FALLBACK_MODEL}"...`);
+      const fallbackResult = await callGemini(GEMINI_FALLBACK_MODEL);
+      if (fallbackResult.response.ok) {
+        geminiResponse = fallbackResult.response;
+      } else {
+        console.error("Fallback model also failed:", fallbackResult.status, fallbackResult.errText);
+      }
+    }
+
+    if (!geminiResponse) {
+      return new Response(JSON.stringify({
+        error: "The invoice reader is busy right now. Please try again in a few minutes. Nothing was saved.",
+      }), {
+        status: 503,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
