@@ -378,7 +378,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
                 </div>
                 
                 {template.inventoryCount !== undefined ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <input
                       type="number"
                       step={(template.unit ?? 'stem') === 'bunch' ? "0.1" : "1"}
@@ -386,12 +386,12 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
                       value={restockAmounts[template.id] ?? ''}
                       onChange={e => setRestockAmounts(prev => ({ ...prev, [template.id]: e.target.value }))}
                       placeholder="Add qty"
-                      className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                     <button
                       onClick={() => handleRestock(template)}
                       disabled={restockAmounts[template.id] === '' || !restockAmounts[template.id]}
-                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="flex items-center justify-center gap-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap sm:flex-shrink-0"
                     >
                       <RefreshCw className="w-3 h-3" />
                       Restock

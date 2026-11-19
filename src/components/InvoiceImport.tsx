@@ -295,14 +295,17 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
             }
             await onUpdateTemplate(line.matchedTemplateId, updates);
           } else {
+            const totalBunches = line.stemsPerBunch > 0
+              ? (line.quantity * line.stemsPerUnit) / line.stemsPerBunch
+              : line.quantity;
             onAddProduct({
               name: line.finalName,
               wholesaleCost: bunchCost,
               quantity: 1,
               type: line.finalType,
               unit: 'bunch',
-              inventoryCount: undefined,
-              lowStockThreshold: undefined,
+              inventoryCount: line.addToInventory ? Math.round(totalBunches * 100) / 100 : undefined,
+              lowStockThreshold: line.addToInventory ? 2 : undefined,
             });
           }
         } else {
@@ -319,14 +322,15 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
             }
             await onUpdateTemplate(line.matchedTemplateId, updates);
           } else {
+            const totalStems = line.quantity * line.stemsPerUnit;
             onAddProduct({
               name: line.finalName,
               wholesaleCost: line.perStemCost,
               quantity: 1,
               type: line.finalType,
               unit: 'stem',
-              inventoryCount: undefined,
-              lowStockThreshold: undefined,
+              inventoryCount: line.addToInventory ? totalStems : undefined,
+              lowStockThreshold: line.addToInventory ? 5 : undefined,
             });
           }
         }
@@ -718,6 +722,43 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
                               {!line.addToInventory && (
                                 <p className="text-xs text-amber-700 mt-1 ml-6">
                                   Inventory unchanged at {line.matchedTemplate.inventoryCount ?? 0} {line.matchedTemplate.unit ?? 'stem'}s
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Inventory section for new products */}
+                          {line.matchAction === 'new' && (
+                            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={line.addToInventory}
+                                  onChange={(e) => updateLine(index, { addToInventory: e.target.checked })}
+                                  disabled={isSaving}
+                                  className="w-4 h-4 rounded text-green-600 focus:ring-green-500"
+                                />
+                                <span className="text-sm text-green-800">
+                                  Add received quantity to inventory
+                                </span>
+                              </label>
+                              {line.addToInventory && (
+                                <p className="text-xs text-green-700 mt-1 ml-6">
+                                  {(() => {
+                                    if (line.saveUnit === 'bunch') {
+                                      const totalBunches = line.stemsPerBunch > 0
+                                        ? (line.quantity * line.stemsPerUnit) / line.stemsPerBunch
+                                        : line.quantity;
+                                      return `Starting inventory: ${Math.round(totalBunches * 100) / 100} bunches`;
+                                    }
+                                    const totalStems = line.quantity * line.stemsPerUnit;
+                                    return `Starting inventory: ${totalStems} stems`;
+                                  })()}
+                                </p>
+                              )}
+                              {!line.addToInventory && (
+                                <p className="text-xs text-green-700 mt-1 ml-6">
+                                  No inventory will be set — you can add stock later
                                 </p>
                               )}
                             </div>
