@@ -41,6 +41,38 @@ Rules:
 - If the document is not an invoice or is unreadable, return { "lineItems": [], "error": "Could not read invoice" }
 - Do not include any text outside the JSON object`;
 
+function encodeBase64(bytes: Uint8Array): string {
+  const chunkSize = 8192;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+function geminiErrorMessage(status: number, errText: string): string {
+  try {
+    const parsed = JSON.parse(errText);
+    const msg = parsed?.error?.message || "";
+    if (status === 400 && /api key|api_key|API_KEY/i.test(msg)) {
+      return "Invalid Gemini API key. Check the GEMINI_API_KEY secret in Supabase.";
+    }
+    if (status === 404 || /not found|not supported/i.test(msg)) {
+      return `Model "${GEMINI_MODEL}" was not found. Check the GEMINI_MODEL secret — it may have been retired. Current stable: gemini-3.8-flash`;
+    }
+    if (status === 400 && /mime type|unsupported/i.test(msg)) {
+      return "Unsupported file type for the AI model. Try a standard JPG or PDF.";
+    }
+    if (msg) return `AI service error: ${msg}`;
+  } catch { /* not JSON */ }
+  if (status === 400) return "Bad request to AI service. The file may be corrupted or in an unsupported format.";
+  if (status === 403) return "Gemini API key does not have permission for this model. Check your Google AI Studio key settings.";
+  if (status === 429) return "Gemini API rate limit reached. Wait a moment and try again.";
+  if (status >= 500) return "Gemini service is temporarily unavailable. Please try again.";
+  return `AI service returned error ${status}.`;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -142,8 +174,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Prepare file for Gemini API
-    const base64Data = btoa(String.fromCharCode(...fileBytes));
+    // Prepare file for Gemini API — encode in chunks to avoid call-stack limits on large files
+    const base64Data = encodeBase64(fileBytes);
     const mimeType = file.type || (fileName.endsWith(".pdf") ? "application/pdf" : "image/jpeg");
 
     // Call Gemini API with configurable model
@@ -176,7 +208,8 @@ Deno.serve(async (req: Request) => {
     if (!geminiResponse.ok) {
       const errText = await geminiResponse.text();
       console.error("Gemini API error:", geminiResponse.status, errText);
-      return new Response(JSON.stringify({ error: "AI extraction service returned an error. Please try again." }), {
+      const userMsg = geminiErrorMessage(geminiResponse.status, errText);
+      return new Response(JSON.stringify({ error: userMsg }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -243,7 +276,16 @@ Deno.serve(async (req: Request) => {
     });
   } catch (err) {
     console.error("import-invoice error:", err);
-    return new Response(JSON.stringify({ error: "An unexpected error occurred while processing the invoice." }), {
+    const detail = err instanceof Error ? err.message : String(err);
+    let userMsg = "An unexpected error occurred while processing the invoice.";
+    if (/Maximum call stack|too many arguments/i.test(detail)) {
+      userMsg = "The file is too large to process. Try a smaller image (under 10MB) or a PDF.";
+    } else if (/fetch|network|connect|dns|timeout/i.test(detail)) {
+      userMsg = "Could not reach the AI service. Check your network connection and try again.";
+    } else if (detail) {
+      userMsg = `Processing error: ${detail}`;
+    }
+    return new Response(JSON.stringify({ error: userMsg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
