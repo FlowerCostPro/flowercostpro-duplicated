@@ -199,14 +199,29 @@ Deno.serve(async (req: Request) => {
       },
     };
 
-    const geminiResponse = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(geminiBody),
-    });
+    let geminiResponse: Response | null = null;
+    const maxRetries = 2;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      geminiResponse = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(geminiBody),
+      });
 
-    if (!geminiResponse.ok) {
+      if (geminiResponse.ok) break;
+
       const errText = await geminiResponse.text();
+      const isTransient = geminiResponse.status === 429 ||
+        geminiResponse.status >= 500 ||
+        /overloaded|high demand|temporarily|try again later/i.test(errText);
+
+      if (isTransient && attempt < maxRetries) {
+        const backoff = (attempt + 1) * 2000;
+        console.warn(`Gemini transient error (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${backoff}ms:`, geminiResponse.status);
+        await new Promise((r) => setTimeout(r, backoff));
+        continue;
+      }
+
       console.error("Gemini API error:", geminiResponse.status, errText);
       const userMsg = geminiErrorMessage(geminiResponse.status, errText);
       return new Response(JSON.stringify({ error: userMsg }), {
@@ -215,7 +230,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const geminiData = await geminiResponse.json();
+    const geminiData = await geminiResponse!.json();
     const textContent = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!textContent) {
