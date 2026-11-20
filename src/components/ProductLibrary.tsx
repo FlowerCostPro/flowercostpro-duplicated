@@ -132,13 +132,17 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
 
   const getUnitLabel = (unit: string | undefined) => unit === 'bunch' ? 'bunch' : 'stem';
 
-  const formatInventory = (count: number | undefined, unit: string | undefined) => {
+  const isEachType = (type: string) => type === 'vase' || type === 'accessory' || type === 'other';
+
+  const formatInventory = (count: number | undefined, unit: string | undefined, type: string) => {
     if (count === undefined) return '';
     const isBunch = unit === 'bunch';
+    const isEach = !isBunch && isEachType(type);
     const rounded = Math.round(count * 100) / 100;
     const isWhole = Number.isInteger(rounded);
     const display = isWhole ? rounded.toString() : rounded.toFixed(2);
-    return `${display} ${isBunch ? 'bunch' : 'unit'}${rounded !== 1 ? 's' : ''}`;
+    const unitWord = isBunch ? 'bunch' : isEach ? 'item' : 'unit';
+    return `${display} ${unitWord}${rounded !== 1 ? 's' : ''}`;
   };
 
   if (templates.length === 0) {
@@ -337,7 +341,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
                 <div className="text-sm text-gray-600 mb-3">
                   <div className="space-y-1">
                     <div className="flex justify-between">
-                      <span>{(template.unit ?? 'stem') === 'bunch' ? 'Bunch Cost:' : 'Wholesale:'}</span>
+                      <span>{(template.unit ?? 'stem') === 'bunch' ? 'Bunch Cost:' : isEachType(template.type) ? 'Cost Each:' : 'Wholesale:'}</span>
                       <span className="font-medium">${template.wholesaleCost.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
@@ -345,6 +349,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
                       <span className="font-bold text-green-600">
                         ${(template.retailPrice ?? Math.round(template.wholesaleCost * markupSettings[(template.unit ?? 'stem') === 'bunch' ? 'bunch' : template.type] * 100) / 100).toFixed(2)}
                         {(template.unit ?? 'stem') === 'bunch' && ' /bunch'}
+                        {(template.unit ?? 'stem') !== 'bunch' && isEachType(template.type) && ' each'}
                       </span>
                     </div>
                     {(template.unit ?? 'stem') === 'bunch' && (
@@ -363,7 +368,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({
                             ? 'text-red-600' 
                             : 'text-gray-700'
                         }`}>
-                          {formatInventory(template.inventoryCount, template.unit)}
+                          {formatInventory(template.inventoryCount, template.unit, template.type)}
                           {template.inventoryCount === 0 && ' (Out of Stock)'}
                           {template.lowStockThreshold && template.inventoryCount <= template.lowStockThreshold && template.inventoryCount > 0 && ' (Low Stock)'}
                         </span>

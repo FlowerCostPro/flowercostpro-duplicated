@@ -90,6 +90,16 @@ function computeBunchCost(line: ReviewLine): number {
   return Math.round((line.linePrice / totalBunches) * 100) / 100;
 }
 
+function isEachCategory(type: string): boolean {
+  return type === 'vase' || type === 'accessory' || type === 'other';
+}
+
+function templateUnitLabel(template: ProductTemplate): string {
+  if (template.unit === 'bunch') return 'per bunch';
+  if (isEachCategory(template.type)) return 'each';
+  return 'per stem';
+}
+
 async function compressImage(file: File, maxDimension = 1600, quality = 0.85): Promise<File> {
   if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
 
@@ -239,6 +249,9 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
       if (patch.unit !== undefined || patch.quantity !== undefined || patch.stemsPerUnit !== undefined || patch.linePrice !== undefined) {
         updated[index].perStemCost = computePerStemCost(updated[index]);
       }
+      if (patch.finalType !== undefined && isEachCategory(patch.finalType)) {
+        updated[index].saveUnit = 'stem';
+      }
       return updated;
     });
   };
@@ -255,6 +268,9 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
         if (template) {
           const templateUnit = (template.unit ?? 'stem') === 'bunch' ? 'bunch' : 'stem';
           updated[index].saveUnit = templateUnit;
+          if (isEachCategory(updated[index].finalType)) {
+            updated[index].saveUnit = 'stem';
+          }
         }
       } else if (action === 'new') {
         updated[index].matchedTemplateId = null;
@@ -364,7 +380,7 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
     if (line.saveUnit === 'bunch') {
       return { cost: computeBunchCost(line), unit: 'bunch' };
     }
-    return { cost: line.perStemCost, unit: 'stem' };
+    return { cost: line.perStemCost, unit: isEachCategory(line.finalType) ? 'each' : 'stem' };
   };
 
   return (
@@ -454,9 +470,10 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
                 {reviewLines.map((line, index) => {
                   const saved = getSavedCostDisplay(line);
                   const isBox = line.unit === 'box';
+                  const effectiveInvoiceUnit = line.unit === 'each' ? 'stem' : line.unit;
                   const unitMismatch = line.matchedTemplate &&
                     line.unit !== 'box' &&
-                    ((line.matchedTemplate.unit ?? 'stem') !== line.unit);
+                    ((line.matchedTemplate.unit ?? 'stem') !== effectiveInvoiceUnit);
 
                   return (
                     <div
@@ -529,7 +546,7 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
                           >
                             {existingTemplates.map((t) => (
                               <option key={t.id} value={t.id}>
-                                {t.name} (${t.wholesaleCost.toFixed(2)}/{t.unit ?? 'stem'})
+                                {t.name} (${t.wholesaleCost.toFixed(2)}/{templateUnitLabel(t)})
                               </option>
                             ))}
                           </select>
@@ -541,7 +558,7 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
                         <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-md flex items-center gap-2">
                           <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                           <span className="text-xs text-amber-700">
-                            Invoice lists this as "{line.unit}" but your existing product uses "{line.matchedTemplate?.unit ?? 'stem'}".
+                            Invoice lists this as "{line.unit}" but your existing product uses "{templateUnitLabel(line.matchedTemplate)}".
                             Saving will use the existing product's unit.
                           </span>
                         </div>
@@ -593,10 +610,11 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
                                 <option value="stem">stem</option>
                                 <option value="bunch">bunch</option>
                                 <option value="box">box</option>
+                                <option value="each">each</option>
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-500 mb-1">Stems / Unit</label>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">{isEachCategory(line.finalType) ? 'Items / Unit' : 'Stems / Unit'}</label>
                               <input
                                 type="number"
                                 min="1"
@@ -619,7 +637,7 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-500 mb-1">Per-Stem Cost</label>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">{isEachCategory(line.finalType) ? 'Cost Each' : 'Per-Stem Cost'}</label>
                               <div className="w-full px-2 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md font-medium text-gray-700">
                                 ${line.perStemCost.toFixed(2)}
                               </div>
@@ -644,32 +662,40 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
                               <label className="block text-xs font-medium text-gray-500 mb-1">Save as unit</label>
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => updateLine(index, { saveUnit: 'stem' })}
-                                  disabled={isSaving}
-                                  className={`flex-1 px-3 py-1.5 text-sm rounded-md border transition-colors ${
-                                    line.saveUnit === 'stem'
-                                      ? 'bg-green-600 text-white border-green-600'
-                                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  Per Stem
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => updateLine(index, { saveUnit: 'bunch' })}
-                                  disabled={isSaving}
-                                  className={`flex-1 px-3 py-1.5 text-sm rounded-md border transition-colors ${
-                                    line.saveUnit === 'bunch'
-                                      ? 'bg-green-600 text-white border-green-600'
-                                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  Per Bunch
-                                </button>
-                              </div>
+                              {isEachCategory(line.finalType) ? (
+                                <div className="flex gap-2">
+                                  <div className="flex-1 px-3 py-1.5 text-sm rounded-md border bg-green-600 text-white border-green-600 text-center">
+                                    Each
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateLine(index, { saveUnit: 'stem' })}
+                                    disabled={isSaving}
+                                    className={`flex-1 px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                                      line.saveUnit === 'stem'
+                                        ? 'bg-green-600 text-white border-green-600'
+                                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    Per Stem
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateLine(index, { saveUnit: 'bunch' })}
+                                    disabled={isSaving}
+                                    className={`flex-1 px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                                      line.saveUnit === 'bunch'
+                                        ? 'bg-green-600 text-white border-green-600'
+                                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    Per Bunch
+                                  </button>
+                                </div>
+                              )}
                             </div>
                             {line.saveUnit === 'bunch' && (
                               <div>
@@ -689,9 +715,9 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
                           {/* Saved value display */}
                           <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded-md">
                             <span className="text-sm text-green-700">
-                              Will save: <strong>${saved.cost.toFixed(2)} per {saved.unit}</strong>
+                              Will save: <strong>${saved.cost.toFixed(2)} {saved.unit === 'each' ? 'each' : 'per ' + saved.unit}</strong>
                               {line.matchAction === 'update' && line.matchedTemplate && (
-                                <span className="text-gray-500"> (was ${line.matchedTemplate.wholesaleCost.toFixed(2)} per {line.matchedTemplate.unit ?? 'stem'})</span>
+                                <span className="text-gray-500"> (was ${line.matchedTemplate.wholesaleCost.toFixed(2)} {templateUnitLabel(line.matchedTemplate)})</span>
                               )}
                             </span>
                           </div>
@@ -722,13 +748,14 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
                                       return `${existing} + ${Math.round(totalBunches * 100) / 100} received = ${Math.round((existing + totalBunches) * 100) / 100} bunches`;
                                     }
                                     const totalStems = line.quantity * line.stemsPerUnit;
-                                    return `${existing} + ${totalStems} received = ${existing + totalStems} stems`;
+                                    const unitWord = isEachCategory(line.finalType) ? 'items' : 'stems';
+                                    return `${existing} + ${totalStems} received = ${existing + totalStems} ${unitWord}`;
                                   })()}
                                 </p>
                               )}
                               {!line.addToInventory && (
                                 <p className="text-xs text-amber-700 mt-1 ml-6">
-                                  Inventory unchanged at {line.matchedTemplate.inventoryCount ?? 0} {line.matchedTemplate.unit ?? 'stem'}s
+                                  Inventory unchanged at {line.matchedTemplate.inventoryCount ?? 0} {isEachCategory(line.matchedTemplate.type) ? 'each' : `${line.matchedTemplate.unit ?? 'stem'}s`}
                                 </p>
                               )}
                             </div>
@@ -759,7 +786,7 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
                                       return `Starting inventory: ${Math.round(totalBunches * 100) / 100} bunches`;
                                     }
                                     const totalStems = line.quantity * line.stemsPerUnit;
-                                    return `Starting inventory: ${totalStems} stems`;
+                                    return `Starting inventory: ${totalStems} ${isEachCategory(line.finalType) ? 'items' : 'stems'}`;
                                   })()}
                                 </p>
                               )}
