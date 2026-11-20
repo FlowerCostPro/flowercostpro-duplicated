@@ -205,13 +205,39 @@ Deno.serve(async (req: Request) => {
       return status === 429 || status >= 500 || TRANSIENT_RE.test(errText);
     }
 
+    const PER_CALL_TIMEOUT_MS = 40_000;
+    const TOTAL_BUDGET_MS = 120_000;
+    const budgetStart = Date.now();
+
+    function remainingBudgetMs(): number {
+      return TOTAL_BUDGET_MS - (Date.now() - budgetStart);
+    }
+
     async function callGemini(model: string): Promise<{ response: Response; transient: boolean; errText: string; status: number }> {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(geminiBody),
-      });
+      const remaining = remainingBudgetMs();
+      if (remaining <= 0) {
+        return { response: new Response(null, { status: 408 }), transient: true, errText: "time budget exhausted", status: 408 };
+      }
+      const callTimeout = Math.min(PER_CALL_TIMEOUT_MS, remaining);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), callTimeout);
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(geminiBody),
+          signal: controller.signal,
+        });
+      } catch (err: any) {
+        clearTimeout(timer);
+        if (err?.name === "AbortError") {
+          return { response: new Response(null, { status: 408 }), transient: true, errText: "per-call timeout", status: 408 };
+        }
+        throw err;
+      }
+      clearTimeout(timer);
       if (response.ok) return { response, transient: false, errText: "", status: response.status };
       const errText = await response.text();
       return { response, transient: isTransientError(response.status, errText), errText, status: response.status };
@@ -242,19 +268,30 @@ Deno.serve(async (req: Request) => {
       lastStatus = result.status;
 
       if (attempt < RETRY_DELAYS.length) {
-        console.warn(`Gemini transient error (attempt ${attempt + 1}/${RETRY_DELAYS.length + 1}), retrying in ${RETRY_DELAYS[attempt]}ms:`, result.status);
-        await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+        const delay = RETRY_DELAYS[attempt];
+        const remaining = remainingBudgetMs();
+        if (remaining <= delay + PER_CALL_TIMEOUT_MS) {
+          console.warn(`Gemini transient error (attempt ${attempt + 1}/${RETRY_DELAYS.length + 1}), but time budget exhausted — stopping:`, result.status);
+          break;
+        }
+        console.warn(`Gemini transient error (attempt ${attempt + 1}/${RETRY_DELAYS.length + 1}), retrying in ${delay}ms:`, result.status);
+        await new Promise((r) => setTimeout(r, delay));
       }
     }
 
     // If primary model exhausted retries, try fallback model once
     if (!geminiResponse && GEMINI_FALLBACK_MODEL) {
-      console.warn(`Primary model "${GEMINI_MODEL}" exhausted retries (last status ${lastStatus}). Trying fallback "${GEMINI_FALLBACK_MODEL}"...`);
-      const fallbackResult = await callGemini(GEMINI_FALLBACK_MODEL);
-      if (fallbackResult.response.ok) {
-        geminiResponse = fallbackResult.response;
+      const remaining = remainingBudgetMs();
+      if (remaining < PER_CALL_TIMEOUT_MS) {
+        console.warn(`Primary model exhausted retries (last status ${lastStatus}) but time budget is too low for fallback — stopping.`);
       } else {
-        console.error("Fallback model also failed:", fallbackResult.status, fallbackResult.errText);
+        console.warn(`Primary model "${GEMINI_MODEL}" exhausted retries (last status ${lastStatus}). Trying fallback "${GEMINI_FALLBACK_MODEL}"...`);
+        const fallbackResult = await callGemini(GEMINI_FALLBACK_MODEL);
+        if (fallbackResult.response.ok) {
+          geminiResponse = fallbackResult.response;
+        } else {
+          console.error("Fallback model also failed:", fallbackResult.status, fallbackResult.errText);
+        }
       }
     }
 

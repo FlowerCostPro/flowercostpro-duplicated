@@ -159,7 +159,7 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
 
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-invoice`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 85000);
+      const timeoutId = setTimeout(() => controller.abort(), 140000);
       const response = await fetch(functionUrl, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -233,7 +233,7 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
     } catch (err: any) {
       console.error('Invoice import error:', err);
       if (err?.name === 'AbortError') {
-        setError('The AI service took too long to respond. Please try again — this is usually temporary.');
+        setError('The invoice reader is busy right now. Please try again in a few minutes. Nothing was saved.');
       } else {
         setError('An unexpected error occurred while processing the invoice.');
       }
