@@ -236,7 +236,7 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
       if (!prev) return prev;
       const updated = [...prev];
       updated[index] = { ...updated[index], ...patch };
-      if (patch.quantity !== undefined || patch.stemsPerUnit !== undefined || patch.linePrice !== undefined) {
+      if (patch.unit !== undefined || patch.quantity !== undefined || patch.stemsPerUnit !== undefined || patch.linePrice !== undefined) {
         updated[index].perStemCost = computePerStemCost(updated[index]);
       }
       return updated;
@@ -584,9 +584,16 @@ const InvoiceImport: React.FC<InvoiceImportProps> = ({
                             </div>
                             <div>
                               <label className="block text-xs font-medium text-gray-500 mb-1">Invoice Unit</label>
-                              <div className="w-full px-2 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md text-gray-600">
-                                {line.unit}
-                              </div>
+                              <select
+                                value={line.unit}
+                                onChange={(e) => updateLine(index, { unit: e.target.value })}
+                                disabled={isSaving}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                              >
+                                <option value="stem">stem</option>
+                                <option value="bunch">bunch</option>
+                                <option value="box">box</option>
+                              </select>
                             </div>
                             <div>
                               <label className="block text-xs font-medium text-gray-500 mb-1">Stems / Unit</label>
