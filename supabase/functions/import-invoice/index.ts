@@ -195,6 +195,10 @@ Deno.serve(async (req: Request) => {
       generationConfig: {
         temperature: 0.1,
         responseMimeType: "application/json",
+        maxOutputTokens: 8192,
+        thinkingConfig: {
+          thinkingBudget: 0,
+        },
       },
     };
 
@@ -222,6 +226,7 @@ Deno.serve(async (req: Request) => {
       const callTimeout = Math.min(PER_CALL_TIMEOUT_MS, remaining);
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), callTimeout);
+      const callStart = Date.now();
       let response: Response;
       try {
         response = await fetch(url, {
@@ -232,12 +237,16 @@ Deno.serve(async (req: Request) => {
         });
       } catch (err: any) {
         clearTimeout(timer);
+        const elapsed = Date.now() - callStart;
         if (err?.name === "AbortError") {
+          console.warn(`Gemini call to "${model}" timed out after ${elapsed}ms`);
           return { response: new Response(null, { status: 408 }), transient: true, errText: "per-call timeout", status: 408 };
         }
         throw err;
       }
       clearTimeout(timer);
+      const elapsed = Date.now() - callStart;
+      console.log(`Gemini call to "${model}" took ${elapsed}ms (status ${response.status})`);
       if (response.ok) return { response, transient: false, errText: "", status: response.status };
       const errText = await response.text();
       return { response, transient: isTransientError(response.status, errText), errText, status: response.status };
